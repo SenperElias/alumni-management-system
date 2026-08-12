@@ -794,106 +794,15 @@ $rejectedCount =
     <!-- =====================================================
          SIDEBAR
     ====================================================== -->
-    <aside class="admin-sidebar">
-
-
-        <div class="admin-brand">
-
-            <div class="brand-logo">
-                TM
-            </div>
-
-
-            <div>
-
-                <strong>
-                    Alumni System
-                </strong>
-
-
-                <small>
-                    Admin Portal
-                </small>
-
-            </div>
-
-        </div>
+    
+              <?php require_once __DIR__ ."/../includes/sidebar.php"; ?>
+  
 
 
 
-        <nav class="admin-nav">
 
 
-            <a href="../dashboard.php">
-                Dashboard
-            </a>
 
-
-            <div class="nav-section">
-                MANAGEMENT
-            </div>
-
-
-            <a href="../users.php">
-                Users
-            </a>
-
-
-            <a href="../alumni.php">
-                Alumni
-            </a>
-
-
-            <a
-                href="index.php"
-                class="active"
-            >
-                Employment
-            </a>
-
-
-            <a href="../opportunities/index.php">
-                Opportunities
-            </a>
-
-
-            <a href="../mentors/index.php">
-                Mentors
-            </a>
-
-
-            <div class="nav-section">
-                REPORTS
-            </div>
-
-
-            <a href="../reports.php">
-                Reports
-            </a>
-
-
-            <div class="nav-section">
-                SYSTEM
-            </div>
-
-
-            <a href="../settings.php">
-                Settings
-            </a>
-
-
-            <a
-                href="../../auth/logout.php"
-                class="logout-link"
-            >
-                Logout
-            </a>
-
-
-        </nav>
-
-
-    </aside>
 
 
 

@@ -189,7 +189,7 @@ $recentOpportunities = $conn->query("
             Events
         </a>
 
-        <a href="mentorship/index.php">
+        <a href="mentors/index.php">
             Mentorship
         </a>
 
@@ -217,11 +217,11 @@ $recentOpportunities = $conn->query("
             Users
         </a>
 
-        <a href="#">
+        <a href="notification/index.php">
             Notifications
         </a>
 
-        <a href="#">
+        <a href="seetings/index.php">
             Settings
         </a>
 

@@ -117,96 +117,10 @@ $profilePhoto =
 
     <!-- SIDEBAR -->
 
-    <aside class="admin-sidebar">
-
-        <div class="admin-brand">
-
-            <div class="brand-logo">
-                TM
-            </div>
-
-            <div>
-
-                <strong>
-                    Alumni System
-                </strong>
-
-                <small>
-                    Alumni Portal
-                </small>
-
-            </div>
-
-        </div>
-
-
-        <nav class="admin-nav">
-
-            <a href="dashboard.php">
-                Dashboard
-            </a>
-
-            <div class="nav-section">
-                MY ACCOUNT
-            </div>
-
-            <a
-                href="profile.php"
-                class="active"
-            >
-                My Profile
-            </a>
-
-            <a href="employment.php">
-                Employment
-            </a>
-
-            <div class="nav-section">
-                OPPORTUNITIES
-            </div>
-
-            <a href="jobs.php">
-                Jobs & Internships
-            </a>
-
-            <a href="mentorship/index.php">
-                Mentorship
-            </a>
-
-            <div class="nav-section">
-                ACTIVITIES
-            </div>
-
-            <a href="projects/index.php">
-                Projects
-            </a>
-
-            <a href="events/events.php">
-                Events
-            </a>
-
-            <div class="nav-section">
-                SYSTEM
-            </div>
-
-            <a href="notifications.php">
-                Notifications
-            </a>
-
-            <a href="settings.php">
-                Settings
-            </a>
-
-            <a
-                href="../auth/logout.php"
-                class="logout-link"
-            >
-                Logout
-            </a>
-
-        </nav>
-
-    </aside>
+      <?php
+      $currentPage = "profile";
+require_once __DIR__ . "/includes/sidebar.php";
+?>
 
 
     <!-- MAIN -->
