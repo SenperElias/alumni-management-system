@@ -1,0 +1,1920 @@
+:root {
+    --primary-brown: #6b4226;
+    --dark-brown: #432817;
+    --light-brown: #a67c52;
+    --cream: #f8f5f1;
+    --white: #ffffff;
+    --text-dark: #292929;
+    --text-light: #666666;
+    --border: #e5e0da;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    background: var(--cream);
+    color: var(--text-dark);
+    line-height: 1.6;
+}
+
+a {
+    text-decoration: none;
+    color: inherit;
+}
+
+button,
+input,
+textarea,
+select {
+    font: inherit;
+}
+
+.site-footer {
+    background: var(--dark-brown);
+    color: var(--white);
+    padding: 30px 20px;
+    text-align: center;
+}
+
+.footer-content {
+    max-width: 1200px;
+    margin: auto;
+}
+
+.login-container {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: var(--cream);
+}
+
+.login-card {
+    width: 100%;
+    max-width: 430px;
+    background: var(--white);
+    padding: 40px;
+    border-radius: 12px;
+    box-shadow: 0 10px 35px rgba(0, 0, 0, 0.08);
+}
+
+.login-card h1 {
+    color: var(--dark-brown);
+    margin-bottom: 10px;
+}
+
+.login-card>p {
+    color: var(--text-light);
+    margin-bottom: 25px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 7px;
+    font-weight: 600;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    outline: none;
+}
+
+.form-group input:focus {
+    border-color: var(--primary-brown);
+}
+
+.login-button {
+    width: 100%;
+    padding: 13px;
+    border: none;
+    border-radius: 6px;
+    background: var(--primary-brown);
+    color: var(--white);
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.login-button:hover {
+    background: var(--dark-brown);
+}
+
+.error-message {
+    padding: 12px;
+    margin-bottom: 20px;
+    border-radius: 6px;
+    background: #f8e7e7;
+    color: #8b2020;
+}
+
+.login-back {
+    margin-top: 20px;
+    text-align: center;
+}
+
+.login-back a {
+    color: var(--primary-brown);
+    font-weight: 600;
+}
+
+/* =========================================
+   ADMIN DASHBOARD
+========================================= */
+
+.admin-body {
+    background: #f5f2ee;
+}
+
+.admin-layout {
+    min-height: 100vh;
+    display: flex;
+}
+
+/* Sidebar */
+
+.admin-sidebar {
+    width: 260px;
+    background: var(--dark-brown);
+    color: var(--white);
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    overflow-y: auto;
+}
+
+.admin-brand {
+    padding: 25px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, .12);
+}
+
+.admin-brand strong {
+    display: block;
+}
+
+.admin-brand small {
+    display: block;
+    opacity: .65;
+    margin-top: 3px;
+}
+
+.brand-logo {
+    width: 42px;
+    height: 42px;
+    border: 2px solid var(--white);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+}
+
+/* Navigation */
+
+.admin-nav {
+    padding: 15px 12px;
+}
+
+.admin-nav a {
+    display: block;
+    padding: 11px 14px;
+    margin-bottom: 4px;
+    border-radius: 6px;
+    color: rgba(255, 255, 255, .78);
+    transition: .2s;
+}
+
+.admin-nav a:hover,
+.admin-nav a.active {
+    background: var(--primary-brown);
+    color: var(--white);
+}
+
+.nav-section {
+    font-size: 11px;
+    letter-spacing: 1px;
+    color: rgba(255, 255, 255, .4);
+    margin: 22px 12px 8px;
+}
+
+.admin-nav .logout-link {
+    margin-top: 15px;
+    border-top: 1px solid rgba(255, 255, 255, .1);
+    padding-top: 18px;
+}
+
+/* Main */
+
+.admin-main {
+    margin-left: 260px;
+    width: calc(100% - 260px);
+}
+
+/* Topbar */
+
+.admin-topbar {
+    background: var(--white);
+    padding: 22px 35px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.admin-topbar h1 {
+    color: var(--dark-brown);
+    margin-bottom: 3px;
+}
+
+.admin-topbar p {
+    color: var(--text-light);
+}
+
+.admin-user {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.admin-user small {
+    display: block;
+    color: var(--text-light);
+}
+
+.admin-avatar {
+    width: 42px;
+    height: 42px;
+    background: var(--primary-brown);
+    color: var(--white);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+}
+
+/* Content */
+
+.dashboard-content {
+    padding: 30px 35px;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns:
+        repeat(4, 1fr);
+    gap: 20px;
+    margin-bottom: 25px;
+}
+
+.stat-card {
+    background: var(--white);
+    padding: 22px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    border: 1px solid var(--border);
+}
+
+.stat-icon {
+    width: 48px;
+    height: 48px;
+    background: var(--cream);
+    color: var(--primary-brown);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 18px;
+}
+
+.stat-card span {
+    display: block;
+    color: var(--text-light);
+    font-size: 14px;
+}
+
+.stat-card strong {
+    display: block;
+    font-size: 26px;
+    color: var(--dark-brown);
+}
+
+/* Panels */
+
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 20px;
+    margin-bottom: 25px;
+}
+
+.dashboard-panel {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px;
+    margin-bottom: 25px;
+}
+
+.panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 22px;
+}
+
+.panel-header h2 {
+    color: var(--dark-brown);
+    font-size: 19px;
+}
+
+.panel-header p {
+    color: var(--text-light);
+    font-size: 14px;
+    margin-top: 3px;
+}
+
+.panel-header a {
+    color: var(--primary-brown);
+    font-weight: 600;
+    font-size: 14px;
+}
+
+/* Employment */
+
+.employment-overview {
+    display: grid;
+    grid-template-columns:
+        repeat(3, 1fr);
+    gap: 15px;
+}
+
+.overview-item {
+    padding: 18px;
+    background: var(--cream);
+    border-radius: 8px;
+}
+
+.overview-item span {
+    display: block;
+    color: var(--text-light);
+    font-size: 13px;
+}
+
+.overview-item strong {
+    display: block;
+    color: var(--dark-brown);
+    font-size: 24px;
+    margin-top: 5px;
+}
+
+/* Quick Actions */
+
+.quick-actions {
+    display: grid;
+    gap: 10px;
+}
+
+.quick-actions a {
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--primary-brown);
+    font-weight: 600;
+}
+
+.quick-actions a:hover {
+    background: var(--cream);
+}
+
+/* Empty State */
+
+.empty-state {
+    text-align: center;
+    padding: 35px 20px;
+}
+
+.empty-icon {
+    width: 50px;
+    height: 50px;
+    margin: auto;
+    border-radius: 50%;
+    background: var(--cream);
+    color: var(--primary-brown);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+}
+
+.empty-state h3 {
+    margin-top: 15px;
+    color: var(--dark-brown);
+}
+
+.empty-state p {
+    color: var(--text-light);
+}
+
+/* Responsive */
+
+@media (max-width: 1100px) {
+
+    .stats-grid {
+        grid-template-columns:
+            repeat(2, 1fr);
+    }
+
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+
+    .admin-sidebar {
+        width: 220px;
+    }
+
+    .admin-main {
+        margin-left: 220px;
+        width: calc(100% - 220px);
+    }
+
+    .admin-topbar {
+        padding: 20px;
+    }
+
+    .dashboard-content {
+        padding: 20px;
+    }
+
+    .employment-overview {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 600px) {
+
+    .admin-sidebar {
+        width: 100%;
+        position: relative;
+    }
+
+    .admin-layout {
+        display: block;
+    }
+
+    .admin-main {
+        margin-left: 0;
+        width: 100%;
+    }
+
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .admin-topbar {
+        display: block;
+    }
+
+    .admin-user {
+        margin-top: 15px;
+    }
+}
+
+/* =========================================
+   ALUMNI MANAGEMENT
+========================================= */
+
+.page-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+}
+
+.page-heading h2 {
+    color: var(--dark-brown);
+    margin-bottom: 4px;
+}
+
+.page-heading p {
+    color: var(--text-light);
+}
+
+.primary-button,
+.secondary-button {
+    display: inline-block;
+    padding: 11px 18px;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+}
+
+.primary-button {
+    background: var(--primary-brown);
+    color: var(--white);
+}
+
+.primary-button:hover {
+    background: var(--dark-brown);
+}
+
+.secondary-button {
+    background: var(--cream);
+    color: var(--dark-brown);
+    border: 1px solid var(--border);
+}
+
+/* Filters */
+
+.alumni-filters {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr auto;
+    gap: 15px;
+    align-items: end;
+}
+
+.filter-group label {
+    display: block;
+    margin-bottom: 7px;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.filter-group input,
+.filter-group select {
+    width: 100%;
+    padding: 11px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--white);
+    outline: none;
+}
+
+.filter-group input:focus,
+.filter-group select:focus {
+    border-color: var(--primary-brown);
+}
+
+.filter-actions {
+    display: flex;
+    gap: 8px;
+}
+
+/* Table */
+
+.table-container {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.data-table th {
+    text-align: left;
+    padding: 14px;
+    background: var(--cream);
+    color: var(--dark-brown);
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+.data-table td {
+    padding: 14px;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+}
+
+.data-table tbody tr:hover {
+    background: #fcfaf8;
+}
+
+.alumni-person {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 180px;
+}
+
+.alumni-avatar,
+.alumni-avatar-placeholder {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.alumni-avatar-placeholder {
+    background: var(--primary-brown);
+    color: var(--white);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+}
+
+.table-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.table-actions a {
+    padding: 6px 10px;
+    border-radius: 5px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.action-view {
+    background: var(--cream);
+    color: var(--dark-brown);
+}
+
+.action-edit {
+    background: var(--primary-brown);
+    color: var(--white);
+}
+
+/* Responsive */
+
+@media (max-width: 1000px) {
+
+    .alumni-filters {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .filter-actions {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 600px) {
+
+    .page-heading {
+        display: block;
+    }
+
+    .page-heading .primary-button {
+        margin-top: 15px;
+    }
+
+    .alumni-filters {
+        grid-template-columns: 1fr;
+    }
+
+    .filter-actions {
+        grid-column: auto;
+    }
+}
+
+/* =========================================
+   ADD ALUMNI FORM
+========================================= */
+
+.form-alert {
+    margin-bottom: 20px;
+}
+
+.success-message {
+    padding: 12px;
+    border-radius: 6px;
+    background: #e8f5e9;
+    color: #246b2b;
+}
+
+.alumni-form {
+    max-width: 1000px;
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+}
+
+.form-field label {
+    display: block;
+    margin-bottom: 7px;
+    font-weight: 600;
+    color: var(--dark-brown);
+}
+
+.form-field input,
+.form-field select,
+.form-field textarea {
+    width: 100%;
+    padding: 11px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--white);
+    outline: none;
+    font-family: inherit;
+}
+
+.form-field textarea {
+    resize: vertical;
+}
+
+.form-field input:focus,
+.form-field select:focus,
+.form-field textarea:focus {
+    border-color: var(--primary-brown);
+}
+
+.form-field small {
+    display: block;
+    margin-top: 6px;
+    color: var(--text-light);
+    font-size: 12px;
+}
+
+.form-full {
+    grid-column: 1 / -1;
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-bottom: 30px;
+}
+
+/* Mobile */
+
+@media (max-width: 700px) {
+
+    .form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .form-full {
+        grid-column: auto;
+    }
+
+    .form-actions {
+        justify-content: stretch;
+    }
+
+    .form-actions a,
+    .form-actions button {
+        flex: 1;
+        text-align: center;
+    }
+}
+
+/* =========================================
+   ALUMNI PROFILE
+========================================= */
+
+.alumni-profile-header {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 28px;
+    margin-bottom: 25px;
+    display: flex;
+    align-items: center;
+    gap: 22px;
+}
+
+.profile-photo-large {
+    width: 110px;
+    height: 110px;
+    flex-shrink: 0;
+}
+
+.profile-photo-large img,
+.profile-initial {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.profile-initial {
+    background: var(--primary-brown);
+    color: var(--white);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 40px;
+    font-weight: 700;
+}
+
+.profile-header-info {
+    flex: 1;
+}
+
+.profile-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--primary-brown);
+    letter-spacing: 1px;
+}
+
+.profile-header-info h2 {
+    margin: 5px 0;
+    color: var(--dark-brown);
+}
+
+.profile-header-info p {
+    margin: 0 0 8px;
+    color: var(--text-light);
+}
+
+.profile-id {
+    font-size: 13px;
+    color: var(--text-light);
+}
+
+.profile-header-actions {
+    display: flex;
+    gap: 10px;
+}
+
+/* Profile information */
+
+.profile-info-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+}
+
+.profile-info-item {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.profile-info-item span {
+    font-size: 13px;
+    color: var(--text-light);
+}
+
+.profile-info-item strong {
+    color: var(--dark-brown);
+}
+
+.profile-info-full {
+    grid-column: 1 / -1;
+}
+
+.profile-bio {
+    line-height: 1.7;
+    color: var(--text);
+}
+
+.profile-bio p {
+    margin: 0;
+}
+
+.muted-text {
+    color: var(--text-light);
+}
+
+/* Visibility */
+
+.visibility-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 12px;
+}
+
+.visibility-item {
+    padding: 15px;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.visibility-item>span:first-child {
+    font-weight: 600;
+    color: var(--dark-brown);
+}
+
+.visibility-on {
+    color: #26733a;
+    font-size: 13px;
+}
+
+.visibility-off {
+    color: #9a3b3b;
+    font-size: 13px;
+}
+
+/* Mobile */
+
+@media (max-width: 800px) {
+
+    .alumni-profile-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .profile-header-actions {
+        width: 100%;
+    }
+
+    .profile-header-actions a {
+        flex: 1;
+        text-align: center;
+    }
+
+    .profile-info-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .profile-info-full {
+        grid-column: auto;
+    }
+
+    .visibility-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+@media (max-width: 500px) {
+
+    .visibility-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* =========================================
+   EDIT ALUMNI
+========================================= */
+
+.edit-profile-photo {
+    width: 100px;
+    height: 100px;
+    object-fit: cover;
+    border-radius: 50%;
+    border: 3px solid var(--cream);
+}
+
+.visibility-form {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+}
+
+.visibility-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    cursor: pointer;
+}
+
+.visibility-checkbox:hover {
+    background: var(--cream);
+}
+
+.visibility-checkbox input {
+    width: 17px;
+    height: 17px;
+    accent-color: var(--primary-brown);
+}
+
+.visibility-checkbox span {
+    font-weight: 600;
+    color: var(--dark-brown);
+}
+
+@media (max-width: 700px) {
+
+    .visibility-form {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* =========================================
+   DELETE ALUMNI
+========================================= */
+
+.delete-confirmation {
+    max-width: 600px;
+    margin: 50px auto;
+    padding: 40px;
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    text-align: center;
+}
+
+.delete-icon {
+    width: 60px;
+    height: 60px;
+    margin: 0 auto 20px;
+    border-radius: 50%;
+    background: #f8e5e5;
+    color: #9a3b3b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 30px;
+    font-weight: 700;
+}
+
+.delete-confirmation h2 {
+    margin-bottom: 10px;
+    color: var(--dark-brown);
+}
+
+.delete-confirmation p {
+    color: var(--text-light);
+    line-height: 1.6;
+}
+
+.delete-warning {
+    font-weight: 600;
+    color: #9a3b3b !important;
+}
+
+.delete-confirmation form {
+    margin-top: 25px;
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+}
+
+.danger-button {
+    border: none;
+    border-radius: 6px;
+    padding: 11px 20px;
+    background: #9a3b3b;
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.danger-button:hover {
+    opacity: 0.9;
+}
+
+/* =========================================
+   ALUMNI DASHBOARD
+========================================= */
+
+.alumni-welcome-card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 25px;
+}
+
+.welcome-label {
+    color: var(--primary-brown);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1px;
+}
+
+.alumni-welcome-card h2 {
+    margin: 7px 0;
+    color: var(--dark-brown);
+    font-size: 28px;
+}
+
+.alumni-welcome-card p {
+    margin: 0;
+    color: var(--text-light);
+    max-width: 650px;
+    line-height: 1.6;
+}
+
+.welcome-profile {
+    width: 90px;
+    height: 90px;
+    flex-shrink: 0;
+}
+
+.welcome-profile img,
+.welcome-profile .profile-initial {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.welcome-profile .profile-initial {
+    background: var(--primary-brown);
+    color: var(--white);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    font-weight: 700;
+}
+
+
+/* STAT CARDS */
+
+.dashboard-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 18px;
+    margin-bottom: 25px;
+}
+
+.stat-card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.stat-icon {
+    width: 45px;
+    height: 45px;
+    border-radius: 8px;
+    background: var(--cream);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 21px;
+}
+
+.stat-card span {
+    display: block;
+    font-size: 12px;
+    color: var(--text-light);
+    margin-bottom: 5px;
+}
+
+.stat-card strong {
+    display: block;
+    color: var(--dark-brown);
+}
+
+
+/* TWO COLUMNS */
+
+.dashboard-two-column {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 25px;
+}
+
+
+/* PROFILE PROGRESS */
+
+.profile-progress {
+    margin-bottom: 20px;
+}
+
+.progress-bar {
+    height: 10px;
+    background: var(--cream);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: var(--primary-brown);
+    border-radius: 10px;
+}
+
+.progress-info {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 8px;
+}
+
+.progress-info strong {
+    color: var(--dark-brown);
+}
+
+.progress-info span {
+    color: var(--text-light);
+}
+
+
+/* EMPLOYMENT */
+
+.employment-placeholder {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.employment-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 8px;
+    background: var(--cream);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+}
+
+.employment-placeholder strong {
+    color: var(--dark-brown);
+}
+
+.employment-placeholder p {
+    margin: 5px 0 0;
+    color: var(--text-light);
+    font-size: 13px;
+}
+
+
+/* QUICK ACTIONS */
+
+.quick-actions {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 15px;
+}
+
+.quick-action {
+    padding: 20px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    text-decoration: none;
+    transition: 0.2s;
+}
+
+.quick-action:hover {
+    border-color: var(--primary-brown);
+    transform: translateY(-2px);
+}
+
+.quick-action span {
+    display: block;
+    font-size: 25px;
+    margin-bottom: 12px;
+}
+
+.quick-action strong {
+    display: block;
+    color: var(--dark-brown);
+    margin-bottom: 5px;
+}
+
+.quick-action small {
+    color: var(--text-light);
+    line-height: 1.4;
+}
+
+
+/* EMPTY SECTIONS */
+
+.empty-dashboard {
+    text-align: center;
+    padding: 35px 20px;
+}
+
+.empty-dashboard>div {
+    font-size: 35px;
+    margin-bottom: 10px;
+}
+
+.empty-dashboard h3 {
+    margin: 0 0 5px;
+    color: var(--dark-brown);
+}
+
+.empty-dashboard p {
+    margin: 0;
+    color: var(--text-light);
+}
+
+
+/* MOBILE */
+
+@media (max-width: 1000px) {
+
+    .dashboard-stats {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .quick-actions {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+
+@media (max-width: 700px) {
+
+    .alumni-welcome-card {
+        align-items: flex-start;
+        gap: 20px;
+    }
+
+    .dashboard-two-column {
+        grid-template-columns: 1fr;
+    }
+
+    .dashboard-stats {
+        grid-template-columns: 1fr;
+    }
+}
+
+
+@media (max-width: 500px) {
+
+    .alumni-welcome-card {
+        flex-direction: column-reverse;
+    }
+
+    .quick-actions {
+        grid-template-columns: 1fr;
+    }
+
+}
+
+/* =========================================
+   ALUMNI PROFILE
+========================================= */
+
+.profile-header-card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 30px;
+    display: flex;
+    align-items: center;
+    gap: 25px;
+    margin-bottom: 25px;
+}
+
+.profile-photo-large {
+    width: 110px;
+    height: 110px;
+    flex-shrink: 0;
+}
+
+.profile-photo-large img,
+.profile-initial-large {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.profile-initial-large {
+    background: var(--primary-brown);
+    color: var(--white);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 40px;
+    font-weight: 700;
+}
+
+.profile-header-info {
+    flex: 1;
+}
+
+.profile-header-info h2 {
+    margin: 0 0 6px;
+    color: var(--dark-brown);
+    font-size: 26px;
+}
+
+.profile-header-info p {
+    margin: 0 0 8px;
+    color: var(--text-light);
+}
+
+.profile-header-info span {
+    font-size: 13px;
+    color: var(--text-light);
+}
+
+.profile-header-action {
+    margin-left: auto;
+}
+
+.profile-info-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+}
+
+.profile-info-item {
+    padding: 15px;
+    background: var(--cream);
+    border-radius: 7px;
+}
+
+.profile-info-item span {
+    display: block;
+    font-size: 12px;
+    color: var(--text-light);
+    margin-bottom: 6px;
+}
+
+.profile-info-item strong {
+    color: var(--dark-brown);
+}
+
+.profile-bio {
+    line-height: 1.7;
+    color: var(--text-light);
+}
+
+.profile-bio p {
+    margin: 0;
+}
+
+.empty-text {
+    font-style: italic;
+}
+
+.visibility-list {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+}
+
+.visibility-list>div {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 16px;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+}
+
+.visibility-list span {
+    color: var(--text-light);
+}
+
+.visibility-list strong {
+    color: var(--dark-brown);
+}
+
+
+/* PROFILE MOBILE */
+
+@media (max-width: 700px) {
+
+    .profile-header-card {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .profile-header-action {
+        margin-left: 0;
+    }
+
+    .profile-info-grid,
+    .visibility-list {
+        grid-template-columns: 1fr;
+    }
+
+}
+
+/* =========================================
+   ALUMNI EDIT PROFILE
+========================================= */
+
+.profile-edit-form {
+    width: 100%;
+}
+
+.edit-photo-section {
+    display: flex;
+    align-items: center;
+    gap: 25px;
+}
+
+.edit-profile-photo,
+.edit-profile-initial {
+    width: 110px;
+    height: 110px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.edit-profile-initial {
+    background: var(--primary-brown);
+    color: var(--white);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 40px;
+    font-weight: 700;
+}
+
+.edit-photo-section input[type="file"] {
+    margin-bottom: 8px;
+}
+
+.edit-photo-section small {
+    display: block;
+    color: var(--text-light);
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.profile-edit-form textarea {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    resize: vertical;
+    font-family: inherit;
+    box-sizing: border-box;
+}
+
+.privacy-options {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.checkbox-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    cursor: pointer;
+}
+
+.checkbox-option input {
+    width: 17px;
+    height: 17px;
+}
+
+.checkbox-option span {
+    color: var(--dark-brown);
+}
+
+.profile-form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 20px;
+    margin-bottom: 30px;
+}
+
+@media (max-width: 700px) {
+
+    .form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .edit-photo-section {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .profile-form-actions {
+        flex-direction: column-reverse;
+    }
+
+    .profile-form-actions a,
+    .profile-form-actions button {
+        width: 100%;
+        text-align: center;
+        box-sizing: border-box;
+    }
+
+}
+
+/* =========================================
+   ALUMNI EMPLOYMENT
+========================================= */
+
+.employment-list {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.employment-card {
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    padding: 22px;
+}
+
+.employment-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.employment-card-header h3 {
+    margin: 0 0 5px;
+    color: var(--dark-brown);
+}
+
+.employment-card-header strong {
+    color: var(--text-light);
+}
+
+.employment-details {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+}
+
+.employment-details>div {
+    background: var(--cream);
+    padding: 13px;
+    border-radius: 6px;
+}
+
+.employment-details span {
+    display: block;
+    font-size: 11px;
+    color: var(--text-light);
+    margin-bottom: 5px;
+}
+
+.employment-details strong {
+    color: var(--dark-brown);
+    font-size: 14px;
+}
+
+.verification-badge {
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.verification-badge.pending {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.verification-badge.verified {
+    background: #d4edda;
+    color: #155724;
+}
+
+.verification-badge.rejected {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.verification-notes {
+    margin-top: 18px;
+    padding: 12px 15px;
+    border-left: 3px solid var(--primary-brown);
+    background: var(--cream);
+    color: var(--text-light);
+}
+
+.verification-notes strong {
+    color: var(--dark-brown);
+}
+
+@media (max-width: 800px) {
+
+    .employment-details {
+        grid-template-columns: 1fr 1fr;
+    }
+
+}
+
+@media (max-width: 600px) {
+
+    .employment-card-header {
+        flex-direction: column;
+    }
+
+    .employment-details {
+        grid-template-columns: 1fr;
+    }
+
+}
+
+/* =========================================================
+   ADMIN FORM TEXTAREAS
+========================================================= */
+
+.admin-form textarea {
+    width: 100%;
+    min-height: 130px;
+    padding: 14px 16px;
+    border: 1px solid #d6c7bd;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #333333;
+    font-family: inherit;
+    font-size: 15px;
+    line-height: 1.6;
+    resize: vertical;
+    box-sizing: border-box;
+    outline: none;
+    transition: border-color 0.2s ease,
+        box-shadow 0.2s ease;
+}
+
+.admin-form textarea:focus {
+    border-color: #7a4b2a;
+    box-shadow: 0 0 0 3px rgba(122, 75, 42, 0.12);
+}
+
+.admin-form textarea::placeholder {
+    color: #999999;
+}
+
+.admin-form .form-group {
+    margin-bottom: 20px;
+}
+
+.admin-form .form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: #3d3028;
+}
+
+.admin-form .form-group label span {
+    color: #b3261e;
+    margin-left: 3px;
+}
+
+/* =========================================================
+   OPPORTUNITIES ADMIN TABLE
+========================================================= */
+
+.admin-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    table-layout: auto;
+}
+
+.admin-table th,
+.admin-table td {
+    padding: 16px 18px;
+    text-align: left;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+.admin-table th {
+    font-weight: 600;
+}
+
+.admin-table td {
+    line-height: 1.5;
+}
+
+/* Give important columns enough room */
+
+.admin-table th:nth-child(1),
+.admin-table td:nth-child(1) {
+    min-width: 180px;
+}
+
+.admin-table th:nth-child(2),
+.admin-table td:nth-child(2) {
+    min-width: 150px;
+}
+
+.admin-table th:nth-child(3),
+.admin-table td:nth-child(3) {
+    min-width: 110px;
+}
+
+.admin-table th:nth-child(4),
+.admin-table td:nth-child(4) {
+    min-width: 140px;
+}
+
+.admin-table th:nth-child(5),
+.admin-table td:nth-child(5) {
+    min-width: 130px;
+}
+
+.admin-table th:nth-child(6),
+.admin-table td:nth-child(6) {
+    min-width: 110px;
+}
+
+.admin-table th:last-child,
+.admin-table td:last-child {
+    min-width: 220px;
+}
+
+/* Action buttons */
+
+.table-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: nowrap;
+}
+
+.table-actions a {
+    white-space: nowrap;
+}
+
+/* Keep the table usable on small screens */
+
+.table-responsive {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Slightly tighter spacing on smaller screens */
+
+@media (max-width: 900px) {
+
+    .admin-table th,
+    .admin-table td {
+        padding: 13px 14px;
+    }
+
+}
+
+/* Mentor profile textarea styling */
+.search-filter-form textarea {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background: #fff;
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 1.5;
+    resize: vertical;
+    box-sizing: border-box;
+}
+
+.search-filter-form textarea:focus {
+    outline: none;
+    border-color: #8b5e3c;
+    box-shadow: 0 0 0 3px rgba(139, 94, 60, 0.10);
+}
+
+.search-filter-form textarea::placeholder {
+    color: #999;
+}
+
+.form-textarea {
+    width: 100%;
+    min-height: 150px;
+    padding: 12px 14px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 15px;
+    line-height: 1.5;
+    resize: vertical;
+    box-sizing: border-box;
+    background: #fff;
+}
+
+.form-textarea:focus {
+    outline: none;
+    border-color: #6b4226;
+}
