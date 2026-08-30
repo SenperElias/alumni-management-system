@@ -9,7 +9,6 @@ $currentFolder = basename(dirname($_SERVER['PHP_SELF']));
         <div class="brand-logo">
             TM
         </div>
-
         <div>
             <strong>Alumni System</strong>
             <small>Admin Portal</small>
@@ -20,7 +19,7 @@ $currentFolder = basename(dirname($_SERVER['PHP_SELF']));
 
         <!-- Dashboard -->
         <a
-            href="../dashboard.php"
+           href="/almuni-management-system/admin/dashboard.php"
             class="<?= $currentPage === 'dashboard.php' ? 'active' : '' ?>"
         >
             Dashboard
@@ -32,7 +31,7 @@ $currentFolder = basename(dirname($_SERVER['PHP_SELF']));
 
         <!-- Alumni -->
         <a
-            href="../alumni/index.php"
+            href="/almuni-management-system/admin/alumni/index.php"
             class="<?= $currentFolder === 'alumni' ? 'active' : '' ?>"
         >
             Alumni
@@ -40,7 +39,7 @@ $currentFolder = basename(dirname($_SERVER['PHP_SELF']));
 
         <!-- Employment -->
         <a
-            href="../employment/index.php"
+           href="/almuni-management-system/admin/employment/index.php"
             class="<?= $currentFolder === 'employment' ? 'active' : '' ?>"
         >
             Employment
@@ -48,7 +47,7 @@ $currentFolder = basename(dirname($_SERVER['PHP_SELF']));
 
         <!-- Opportunities -->
         <a
-            href="../opportunities/index.php"
+           href="/almuni-management-system/admin/opportunities/index.php"
             class="<?= $currentFolder === 'opportunities' ? 'active' : '' ?>"
         >
             Opportunities
@@ -56,7 +55,7 @@ $currentFolder = basename(dirname($_SERVER['PHP_SELF']));
 
         <!-- Events -->
         <a
-            href="../events/index.php"
+           href="/almuni-management-system/admin/events/index.php"
             class="<?= $currentFolder === 'events' ? 'active' : '' ?>"
         >
             Events
@@ -64,7 +63,7 @@ $currentFolder = basename(dirname($_SERVER['PHP_SELF']));
 
         <!-- Mentorship -->
         <a
-            href="../mentors/index.php"
+           href="/almuni-management-system/admin/mentors/index.php"
             class="<?= $currentFolder === 'mentors' ? 'active' : '' ?>"
         >
             Mentorship
@@ -72,7 +71,7 @@ $currentFolder = basename(dirname($_SERVER['PHP_SELF']));
 
         <!-- Projects -->
         <a
-            href="../projects/index.php"
+           href="/almuni-management-system/admin/projects/index.php"
             class="<?= $currentFolder === 'projects' ? 'active' : '' ?>"
         >
             Projects
@@ -80,10 +79,23 @@ $currentFolder = basename(dirname($_SERVER['PHP_SELF']));
 
         <!-- Contributions -->
         <a
-            href="../contributions/index.php"
+            href="/almuni-management-system/admin/contributions/index.php"
             class="<?= $currentFolder === 'contributions' ? 'active' : '' ?>"
         >
             Contributions
+        </a>
+
+        <!-- Communication -->
+        <div class="nav-section">
+            COMMUNICATION
+        </div>
+
+        <!-- Contact Inquiries -->
+        <a
+           href="/almuni-management-system/admin/contact/index.php"
+            class="<?= $currentFolder === 'contact' ? 'active' : '' ?>"
+        >
+            Contact Inquiries
         </a>
 
         <div class="nav-section">
@@ -92,7 +104,7 @@ $currentFolder = basename(dirname($_SERVER['PHP_SELF']));
 
         <!-- Employment Report -->
         <a
-            href="../reports/index.php"
+            href="/almuni-management-system/admin/reports/index.php"
             class="<?= $currentFolder === 'reports' ? 'active' : '' ?>"
         >
             Employment Report
@@ -104,7 +116,7 @@ $currentFolder = basename(dirname($_SERVER['PHP_SELF']));
 
         <!-- Users -->
         <a
-            href="../users/index.php"
+           href="/almuni-management-system/admin/users/index.php"
             class="<?= $currentFolder === 'users' ? 'active' : '' ?>"
         >
             Users
@@ -112,7 +124,7 @@ $currentFolder = basename(dirname($_SERVER['PHP_SELF']));
 
         <!-- Notifications -->
         <a
-            href="../notification/index.php"
+            href="/almuni-management-system/admin/notification/index.php"
             class="<?= $currentFolder === 'notification' ? 'active' : '' ?>"
         >
             Notifications
@@ -120,7 +132,7 @@ $currentFolder = basename(dirname($_SERVER['PHP_SELF']));
 
         <!-- Settings -->
         <a
-            href="../seetings/index.php"
+            href="/almuni-management-system/admin/seetings/index.php"
             class="<?= $currentFolder === 'seetings' ? 'active' : '' ?>"
         >
             Settings
@@ -128,7 +140,7 @@ $currentFolder = basename(dirname($_SERVER['PHP_SELF']));
 
         <!-- Logout -->
         <a
-            href="../../auth/logout.php"
+           href="/almuni-management-system/auth/logout.php"
             class="logout-link"
         >
             Logout

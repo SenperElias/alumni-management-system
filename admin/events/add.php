@@ -1,9 +1,16 @@
-<?php
+ <?php
+
 session_start();
 
 require_once "../../config/database.php";
 require_once "../../config/config.php";
 require_once "../../includes/functions.php";
+
+/*
+|--------------------------------------------------------------------------
+| ADMIN ACCESS
+|--------------------------------------------------------------------------
+*/
 
 if (!isset($_SESSION["user_id"])) {
     header("Location: ../../auth/login.php");
@@ -15,8 +22,19 @@ if ($_SESSION["role"] !== "admin") {
     exit;
 }
 
+/*
+|--------------------------------------------------------------------------
+| VARIABLES
+|--------------------------------------------------------------------------
+*/
+
 $error = "";
-$success = "";
+
+/*
+|--------------------------------------------------------------------------
+| CREATE EVENT
+|--------------------------------------------------------------------------
+*/
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
@@ -26,8 +44,16 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $startTime = trim($_POST["start_time"] ?? "");
     $endTime = trim($_POST["end_time"] ?? "");
     $location = trim($_POST["location"] ?? "");
-    $registrationDeadline = trim($_POST["registration_deadline"] ?? "");
+    $registrationDeadline = trim(
+        $_POST["registration_deadline"] ?? ""
+    );
     $maxCapacity = trim($_POST["max_capacity"] ?? "");
+
+    /*
+    |--------------------------------------------------------------------------
+    | VALIDATION
+    |--------------------------------------------------------------------------
+    */
 
     if (
         $title === "" ||
@@ -41,12 +67,45 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     } else {
 
+        /*
+        |--------------------------------------------------------------------------
+        | MAX CAPACITY
+        |--------------------------------------------------------------------------
+        */
+
         $maxCapacityValue =
             $maxCapacity === ""
-            ? null
-            : (int)$maxCapacity;
+                ? null
+                : (int) $maxCapacity;
 
-        $status = "Approved";
+        /*
+        |--------------------------------------------------------------------------
+        | EVENT STATUS
+        |--------------------------------------------------------------------------
+        |
+        | Database ENUM:
+        | draft
+        | published
+        | completed
+        | cancelled
+        |
+        */
+
+        $status = "published";
+
+        /*
+        |--------------------------------------------------------------------------
+        | CREATED BY
+        |--------------------------------------------------------------------------
+        */
+
+        $createdBy = (int) $_SESSION["user_id"];
+
+        /*
+        |--------------------------------------------------------------------------
+        | INSERT EVENT
+        |--------------------------------------------------------------------------
+        */
 
         $stmt = $conn->prepare("
             INSERT INTO events (
@@ -64,6 +123,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
 
+        if (!$stmt) {
+            die("Database error: " . $conn->error);
+        }
+
         $stmt->bind_param(
             "sssssssisi",
             $title,
@@ -75,22 +138,30 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $registrationDeadline,
             $maxCapacityValue,
             $status,
-            $_SESSION["user_id"]
+            $createdBy
         );
+
+        /*
+        |--------------------------------------------------------------------------
+        | EXECUTE
+        |--------------------------------------------------------------------------
+        */
 
         if ($stmt->execute()) {
 
-            header("Location: index.php");
+            $stmt->close();
+header("Location: index.php");
             exit;
 
         } else {
 
-            $error = "Unable to create event.";
-        }
+            $error = "Unable to create event: " . $stmt->error;
 
-        $stmt->close();
+            $stmt->close();
+        }
     }
 }
+
 ?>
 
 <!DOCTYPE html>
@@ -120,98 +191,26 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
 <div class="admin-layout">
 
-    <!-- SIDEBAR -->
+    <!--
+    |--------------------------------------------------------------------------
+    | EXISTING SIDEBAR INCLUDE
+    |--------------------------------------------------------------------------
+    -->
 
-    <aside class="admin-sidebar">
+    <?php
+    $currentPage = "events";
+    require_once __DIR__ . "/../includes/sidebar.php";
+    ?>
 
-        <div class="admin-brand">
-
-            <div class="brand-logo">
-                TM
-            </div>
-
-            <div>
-
-                <strong>
-                    Alumni System
-                </strong>
-
-                <small>
-                    Admin Portal
-                </small>
-
-            </div>
-
-        </div>
-
-
-        <nav class="admin-nav">
-
-            <a href="../dashboard.php">
-                Dashboard
-            </a>
-
-            <div class="nav-section">
-                MANAGEMENT
-            </div>
-
-            <a href="../opportunities/">
-                Opportunities
-            </a>
-
-            <a
-                href="index.php"
-                class="active"
-            >
-                Events
-            </a>
-
-            <a href="#">
-                Mentorship
-            </a>
-
-            <a href="#">
-                Projects
-            </a>
-
-            <div class="nav-section">
-                REPORTS
-            </div>
-
-            <a href="#">
-                Employment Reports
-            </a>
-
-            <a href="#">
-                Alumni Reports
-            </a>
-
-            <div class="nav-section">
-                SYSTEM
-            </div>
-
-            <a href="#">
-                Notifications
-            </a>
-
-            <a href="#">
-                Settings
-            </a>
-            <a
-                href="../../auth/logout.php"
-                class="logout-link"
-            >
-                Logout
-            </a>
-
-        </nav>
-
-    </aside>
-
-
-    <!-- MAIN -->
+    <!--
+    |--------------------------------------------------------------------------
+    | MAIN CONTENT
+    |--------------------------------------------------------------------------
+    -->
 
     <main class="admin-main">
+
+        <!-- TOP BAR -->
 
         <header class="admin-topbar">
 
@@ -229,6 +228,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
         </header>
 
+        <!-- CONTENT -->
 
         <section class="dashboard-content">
 
@@ -240,8 +240,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             <?php endif; ?>
 
-
             <div class="dashboard-panel">
+
+                <!-- PANEL HEADER -->
 
                 <div class="panel-header">
 
@@ -259,11 +260,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                 </div>
 
+                <!-- FORM -->
 
                 <form method="POST">
 
                     <div class="form-grid">
-
 
                         <!-- TITLE -->
 
@@ -286,7 +287,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                         </div>
 
-
                         <!-- LOCATION -->
 
                         <div class="form-group">
@@ -308,16 +308,14 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                         </div>
 
-
-                        <!-- DATE -->
+                        <!-- EVENT DATE -->
 
                         <div class="form-group">
 
                             <label for="event_date">
                                 Event Date *
                             </label>
-
-                            <input
+ <input
                                 type="date"
                                 id="event_date"
                                 name="event_date"
@@ -328,7 +326,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                             >
 
                         </div>
-
 
                         <!-- START TIME -->
 
@@ -350,11 +347,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                         </div>
 
-
                         <!-- END TIME -->
 
                         <div class="form-group">
-                        <label for="end_time">
+
+                            <label for="end_time">
                                 End Time *
                             </label>
 
@@ -369,7 +366,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                             >
 
                         </div>
-
 
                         <!-- REGISTRATION DEADLINE -->
 
@@ -389,7 +385,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                             >
 
                         </div>
-
 
                         <!-- MAX CAPACITY -->
 
@@ -416,9 +411,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                         </div>
 
-
                     </div>
-
 
                     <!-- DESCRIPTION -->
 
@@ -440,12 +433,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                     </div>
 
-
                     <!-- BUTTONS -->
 
                     <div class="profile-form-actions">
-
-                        <a
+ <a
                             href="index.php"
                             class="secondary-button"
                         >
@@ -473,4 +464,4 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
 </body>
 
-</html>    
+</html>

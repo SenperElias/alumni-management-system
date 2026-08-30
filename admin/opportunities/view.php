@@ -855,13 +855,13 @@ $success = $_GET["success"] ?? "";
 
                     if (
                         !empty(
-                            $opportunity["contact_info"]
+                            $opportunity["contact_information"]
                         )
                     ) {
 
                         echo nl2br(
                             e(
-                                $opportunity["contact_info"]
+                                $opportunity["contact_information"]
                             )
                         );
 

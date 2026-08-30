@@ -59,8 +59,9 @@ require_once DIR . '/includes/functions.php';
             display: flex;
             align-items: center;
             justify-content: space-between;
-            position: relative;
-            z-index: 10;
+            position: sticky;
+            top:0;
+            z-index: 1000;
         }
 
         .public-brand {
@@ -97,7 +98,7 @@ require_once DIR . '/includes/functions.php';
         .public-nav {
             display: flex;
             align-items: center;
-            gap: 24px;
+            gap: 18px;
         }
 
         .public-nav a {
@@ -433,31 +434,16 @@ require_once DIR . '/includes/functions.php';
 
 
     <nav class="public-nav">
-
-        <a href="index.php">
-            Home
-        </a>
-
-        <a href="#about">
-            About
-        </a>
-
-        <a href="#services">
-            Services
-        </a>
-
-        <a href="#contact">
-            Contact
-        </a>
-
-        <a
-            href="../auth/login.php"
-            class="login-button"
-        >
-            Login
-        </a>
-
-    </nav>
+    <a href="index.php">Home</a>
+    <a href="index.php#about">About</a>
+    <a href="index.php#services">Services</a>
+    <a href="gallery.php">Gallery</a>
+    <a href="success-stories.php">Success Stories</a>
+    <a href="announcements.php">Announcements</a>
+    <a href="contact.php">Contact</a>
+    <a href="check_inquiry.php">Check Inquiry</a>
+    <a href="../auth/login.php" class="login-button">Login</a>
+</nav>
 
 </header>
 
@@ -696,13 +682,9 @@ require_once DIR . '/includes/functions.php';
 
 <!-- FOOTER -->
 
-<footer
-    class="public-footer"
-    id="contact"
->
+<footer class="public-footer">
 
     <div class="footer-content">
-
 
         <div>
 
@@ -718,25 +700,45 @@ require_once DIR . '/includes/functions.php';
 
 
         <div class="footer-links">
-
-            <a href="index.php">
+ <a href="index.php">
                 Home
             </a>
 
-            <a href="#about">
+            <a href="index.php#about">
                 About
             </a>
 
-            <a href="#services">
+            <a href="index.php#services">
                 Services
             </a>
+
+            <a href="gallery.php">
+                Gallery
+            </a>
+
+            <a href="success-stories.php">
+                Success Stories
+            </a>
+
+            <a href="announcements.php">
+                Announcements
+            </a>
+
+            <a href="contact.php">
+                Coontact
+            </a>
+
+            <a href="check_inquiry.php">
+            Check Inquiry
+        </a>
 
             <a href="../auth/login.php">
                 Login
             </a>
 
-        </div>
+           
 
+        </div>
 
     </div>
 
@@ -744,12 +746,15 @@ require_once DIR . '/includes/functions.php';
     <div class="copyright">
 
         © <?= date("Y") ?>
+
         Taferi Mekonnen Polytechnic Technical College.
+
         All rights reserved.
 
     </div>
 
 </footer>
+            
 
 
 </body>

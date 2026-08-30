@@ -58,75 +58,53 @@ if ($result) {
 | EMPLOYMENT COUNTS
 |--------------------------------------------------------------------------
 */
-
 $employed = 0;
 $unemployed = 0;
 $self_employed = 0;
 $continuing_education = 0;
 
+/*
+|--------------------------------------------------------------------------
+| EMPLOYMENT COUNTS
+|--------------------------------------------------------------------------
+| Count each alumnus only once using their latest employment record.
+|--------------------------------------------------------------------------
+*/
 
 $sql = "
     SELECT
-        employment_status,
+        LOWER(TRIM(e.employment_status)) AS employment_status,
         COUNT(*) AS total
-    FROM employment
-    GROUP BY employment_status
+    FROM employment e
+    INNER JOIN (
+        SELECT
+            alumni_id,
+            MAX(employment_id) AS latest_employment_id
+        FROM employment
+        GROUP BY alumni_id
+    ) latest
+        ON latest.latest_employment_id = e.employment_id
+    GROUP BY LOWER(TRIM(e.employment_status))
 ";
-
 
 $result = $conn->query($sql);
 
-
 if ($result) {
-
     while ($row = $result->fetch_assoc()) {
 
-        $status =
-            strtolower(
-                trim(
-                    $row["employment_status"]
-                )
-            );
-
-        $count =
-            (int) $row["total"];
-
+        $status = strtolower(trim($row["employment_status"]));
+        $count = (int) $row["total"];
 
         if ($status === "employed") {
-
             $employed = $count;
-
-        }
-
-        elseif (
-            $status === "unemployed"
-        ) {
-
+        } elseif ($status === "unemployed") {
             $unemployed = $count;
-
-        }
-
-        elseif (
-            $status === "self-employed"
-            || $status === "self employed"
-        ) {
-
+        } elseif ($status === "self_employed") {
             $self_employed = $count;
-
+        } elseif ($status === "continuing_education") {
+            $continuing_education = $count;
         }
-
-        elseif (
-            $status === "continuing education"
-            || $status === "continuing_education"
-        ) {
-
-            $continuing_education =
-                $count;
-
-        }
-
     }
-
 }
 
 
@@ -148,165 +126,171 @@ if ($total_graduates > 0) {
 }
 
 
-/*
-|--------------------------------------------------------------------------
+/*|--------------------------------------------------------------------------
 | DEPARTMENT EMPLOYMENT REPORT
+|--------------------------------------------------------------------------
+| Each alumnus is counted once.
+| The latest employment record determines the current status.
 |--------------------------------------------------------------------------
 */
 
 $department_report = [];
 
-
 $sql = "
     SELECT
         d.department_name,
         COUNT(a.alumni_id) AS total_graduates,
+
         SUM(
             CASE
-                WHEN LOWER(TRIM(e.employment_status))
-                    = 'employed'
+                WHEN LOWER(TRIM(latest_employment.employment_status)) = 'employed'
                 THEN 1
                 ELSE 0
             END
         ) AS employed
+
     FROM departments d
+
     LEFT JOIN alumni a
         ON a.department_id = d.department_id
-    LEFT JOIN employment e
-        ON e.alumni_id = a.alumni_id
+
+    LEFT JOIN (
+        SELECT e1.*
+        FROM employment e1
+        INNER JOIN (
+            SELECT
+                alumni_id,
+                MAX(COALESCE(Updated_at, created_at)) AS latest_date
+            FROM employment
+            GROUP BY alumni_id
+        ) e2
+            ON e1.alumni_id = e2.alumni_id
+            AND COALESCE(e1.Updated_at, e1.created_at) = e2.latest_date
+    ) latest_employment
+        ON latest_employment.alumni_id = a.alumni_id
+
     GROUP BY
         d.department_id,
         d.department_name
+
     ORDER BY
         d.department_name
 ";
 
-
 $result = $conn->query($sql);
-
 
 if ($result) {
 
-    while (
-        $row = $result->fetch_assoc()
-    ) {
+    while ($row = $result->fetch_assoc()) {
 
         $department_total =
-            (int)
-            $row["total_graduates"];
+            (int) $row["total_graduates"];
 
         $department_employed =
-            (int)
-            $row["employed"];
-
+            (int) $row["employed"];
 
         $department_rate = 0;
 
-
-        if (
-            $department_total > 0
-        ) {
+        if ($department_total > 0) {
 
             $department_rate =
                 (
                     $department_employed
                     /
                     $department_total
-                )
-                * 100;
-
+                ) * 100;
         }
-
 
         $row["employment_rate"] =
             $department_rate;
 
-
         $department_report[] =
             $row;
-
     }
-
 }
 /*
-|--------------------------------------------------------------------------
+/*|--------------------------------------------------------------------------
 | GRADUATION YEAR REPORT
+|--------------------------------------------------------------------------
+| Each alumnus is counted once.
+| The latest employment record determines the current status.
 |--------------------------------------------------------------------------
 */
 
 $year_report = [];
 
-
 $sql = "
     SELECT
         a.graduation_year,
+
         COUNT(a.alumni_id) AS total_graduates,
+
         SUM(
             CASE
-                WHEN LOWER(TRIM(e.employment_status))
-                    = 'employed'
+                WHEN LOWER(TRIM(latest_employment.employment_status)) = 'employed'
                 THEN 1
                 ELSE 0
             END
         ) AS employed
-    FROM alumni a
-    LEFT JOIN employment e
-        ON e.alumni_id = a.alumni_id
-    WHERE a.graduation_year IS NOT NULL
-    GROUP BY a.graduation_year
-    ORDER BY a.graduation_year DESC
-";
 
+    FROM alumni a
+
+    LEFT JOIN (
+        SELECT e1.*
+        FROM employment e1
+        INNER JOIN (
+            SELECT
+                alumni_id,
+                MAX(COALESCE(Updated_at, created_at)) AS latest_date
+            FROM employment
+            GROUP BY alumni_id
+        ) e2
+            ON e1.alumni_id = e2.alumni_id
+            AND COALESCE(e1.Updated_at, e1.created_at) = e2.latest_date
+    ) latest_employment
+        ON latest_employment.alumni_id = a.alumni_id
+
+    WHERE a.graduation_year IS NOT NULL
+
+    GROUP BY
+        a.graduation_year
+
+    ORDER BY
+        a.graduation_year DESC
+";
 
 $result = $conn->query($sql);
 
-
 if ($result) {
 
-    while (
-        $row = $result->fetch_assoc()
-    ) {
+    while ($row = $result->fetch_assoc()) {
 
         $year_total =
-            (int)
-            $row["total_graduates"];
+            (int) $row["total_graduates"];
 
         $year_employed =
-            (int)
-            $row["employed"];
-
+            (int) $row["employed"];
 
         $year_rate = 0;
 
-
-        if (
-            $year_total > 0
-        ) {
+        if ($year_total > 0) {
 
             $year_rate =
                 (
                     $year_employed
                     /
                     $year_total
-                )
-                * 100;
-
+                ) * 100;
         }
-
 
         $row["employment_rate"] =
             $year_rate;
 
-
         $year_report[] =
             $row;
-
     }
-
 }
-
 ?>
-
 
 <!DOCTYPE html>
 
@@ -641,6 +625,10 @@ if ($result) {
 
                     </div>
 
+<div class="stat-card">
+    <span>Continuing Education</span>
+    <strong><?= $continuing_education ?></strong>
+</div>
 
                     <div class="stat-card">
 

@@ -421,13 +421,27 @@ $result = $stmt->get_result();
     Registrations
 </a>
 
-                                            <a
-                                                href="delete.php?id=<?= (int)$event["event_id"] ?>"
-                                                class="danger-button"
-                                                onclick="return confirm('Are you sure you want to delete this event?');"
-                                            >
-                                                Delete
-                                            </a>
+                                           <form
+    method="POST"
+    action="delete.php"
+    style="display:inline;"
+    onsubmit="return confirm('Are you sure you want to delete this event?');"
+>
+    <?= csrf_field() ?>
+
+    <input
+        type="hidden"
+        name="id"
+        value="<?= (int)$event["event_id"] ?>"
+    >
+
+    <button
+        type="submit"
+        class="danger-button"
+    >
+        Delete
+    </button>
+</form> 
 
                                         </div>
 

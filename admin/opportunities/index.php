@@ -66,7 +66,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         );
 
         if ($stmt->execute()) {
-            header("Location: index.php?status=Pending");
+            header("Location: index.php?status=pending");
             exit;
         }
 
@@ -95,7 +95,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         );
 
         if ($stmt->execute()) {
-            header("Location: index.php?status=Pending");
+            header("Location: index.php?status=pending");
             exit;
         }
 
@@ -392,8 +392,8 @@ $result = $stmt->get_result();
 
 
                             <option
-                                value="Pending"
-                                <?= $status === "Pending"
+                                value="pending"
+                                <?= $status === "pending"
                                     ? "selected"
                                     : "" ?>
                             >
@@ -403,7 +403,7 @@ $result = $stmt->get_result();
 
                             <option
                                 value="Approved"
-                                <?= $status === "Approved"
+                                <?= $status === "approved"
                                     ? "selected"
                                     : "" ?>
                             >
@@ -413,7 +413,7 @@ $result = $stmt->get_result();
 
                             <option
                                 value="Rejected"
-                                <?= $status === "Rejected"
+                                <?= $status === "rejected"
                                     ? "selected"
                                     : "" ?>
                             >
@@ -615,7 +615,7 @@ $result = $stmt->get_result();
                                                     View
                                                 </a>
 
-<?php if ($opportunity["status"] === "Pending"): ?>
+<?php if ($opportunity["status"] === "pending"): ?>
 
     <form method="POST" style="display:inline;">
 
@@ -675,13 +675,29 @@ $result = $stmt->get_result();
                                                 </a>
 
 
-                                                <a
-                                                    href="delete.php?id=<?= (int)$opportunity["opportunity_id"] ?>"
-                                                    class="danger-button"
-                                                    onclick="return confirm('Are you sure you want to delete this opportunity?');"
-                                                >
-                                                    Delete
-                                                </a>
+<form
+    method="POST"
+    action="delete.php"
+   
+    style="display:inline;"
+    onsubmit="return confirm('Are you sure you want to delete this opportunity?');"
+>
+ <?= csrf_field() ?>
+    <input
+        type="hidden"
+        name="opportunity_id"
+        value="<?= (int)$opportunity["opportunity_id"] ?>"
+    >
+
+    <?= csrf_field() ?>
+
+    <button
+        type="submit"
+        class="danger-button"
+    >
+        Delete
+    </button>
+</form>
 
 
                                             </div>

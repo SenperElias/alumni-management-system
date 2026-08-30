@@ -1,11 +1,10 @@
-<?php
+ <?php
 
 session_start();
 
 require_once "../../config/database.php";
 require_once "../../config/config.php";
 require_once "../../includes/functions.php";
-
 
 /*
 |--------------------------------------------------------------------------
@@ -14,22 +13,16 @@ require_once "../../includes/functions.php";
 */
 
 if (!isset($_SESSION["user_id"])) {
-
     header("Location: ../../auth/login.php");
     exit;
-
 }
 
 if ($_SESSION["role"] !== "alumni") {
-
     header("Location: ../../index.php");
     exit;
-
 }
 
-
 $user_id = (int) $_SESSION["user_id"];
-
 
 /*
 |--------------------------------------------------------------------------
@@ -45,99 +38,79 @@ $stmt = $conn->prepare("
 ");
 
 if (!$stmt) {
-
     die("Database error: " . $conn->error);
-
 }
 
 $stmt->bind_param("i", $user_id);
-
 $stmt->execute();
 
 $result = $stmt->get_result();
-
 $alumni = $result->fetch_assoc();
 
 $stmt->close();
 
-
 if (!$alumni) {
-
     die("Alumni profile not found.");
-
 }
-
 
 $mentee_id = (int) $alumni["alumni_id"];
 
-
 /*
 |--------------------------------------------------------------------------
-| GET MENTOR PROFILE ID
+| GET MENTOR ID FROM URL
+|--------------------------------------------------------------------------
+| Example:
+| request.php?mentor_id=2
 |--------------------------------------------------------------------------
 */
 
-if (!isset($_GET["id"]) || !is_numeric($_GET["id"])) {
+$mentor_id = isset($_GET["mentor_id"])
+    ? (int) $_GET["mentor_id"]
+    : 0;
 
+if ($mentor_id <= 0) {
     die("Invalid mentor.");
-
 }
-
-$mentor_profile_id = (int) $_GET["id"];
-
 
 /*
 |--------------------------------------------------------------------------
-| GET MENTOR
+| GET MENTOR INFORMATION
 |--------------------------------------------------------------------------
 */
 
 $stmt = $conn->prepare("
     SELECT
         mp.mentor_profile_id,
-        mp.alumni_id,
         mp.expertise,
         mp.skills,
-        mp.experience_years,
-        mp.biography,
-        mp.availability,
+        
         mp.status,
-
+        a.alumni_id,
         a.first_name,
         a.last_name
-
     FROM mentor_profiles mp
-
     INNER JOIN alumni a
         ON mp.alumni_id = a.alumni_id
-
     WHERE mp.mentor_profile_id = ?
-
       AND LOWER(TRIM(mp.status)) = 'active'
-
     LIMIT 1
 ");
 
-$stmt->bind_param("i", $mentor_profile_id);
+if (!$stmt) {
+    die("Database error: " . $conn->error);
+}
 
+$stmt->bind_param("i", $mentor_id);
 $stmt->execute();
 
 $result = $stmt->get_result();
-
 $mentor = $result->fetch_assoc();
 
 $stmt->close();
 
-
 if (!$mentor) {
-
-    die("Mentor not found or is not currently available.");
-
+    die("Mentor not found or mentor is not active.");
 }
-
-
-$mentor_id = (int) $mentor["mentor_profile_id"];
-
 
 /*
 |--------------------------------------------------------------------------
@@ -145,101 +118,84 @@ $mentor_id = (int) $mentor["mentor_profile_id"];
 |--------------------------------------------------------------------------
 */
 
-if (
-    (int) $mentor["alumni_id"] === $mentee_id
-) {
-
-    die("You cannot request yourself as a mentor.");
-
+if ((int) $mentor["alumni_id"] === $mentee_id) {
+    die("You cannot send a mentorship request to yourself.");
 }
-
 
 /*
 |--------------------------------------------------------------------------
-| HANDLE FORM SUBMISSION
+| HANDLE REQUEST SUBMISSION
 |--------------------------------------------------------------------------
 */
 
 $error = "";
-
 $success = "";
-
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
-
-    $message = trim(
-        $_POST["message"] ?? ""
-    );
-
+    $message = trim($_POST["message"] ?? "");
 
     /*
     |--------------------------------------------------------------------------
-    | Validate Message
+    | VALIDATE MESSAGE
     |--------------------------------------------------------------------------
     */
 
     if ($message === "") {
 
-        $error = "Please write a message to the mentor.";
+        $error = "Please enter a message.";
 
     } elseif (strlen($message) < 10) {
 
-        $error =
-            "Your message should contain at least 10 characters.";
+        $error = "Please write a little more about why you want mentorship.";
 
     } else {
 
-
         /*
         |--------------------------------------------------------------------------
-        | Check Existing Request
+        | CHECK FOR EXISTING PENDING REQUEST
         |--------------------------------------------------------------------------
         */
 
         $stmt = $conn->prepare("
-            SELECT
-                request_id,
-                status
+            SELECT request_id
             FROM mentorship_requests
             WHERE mentor_id = ?
               AND mentee_id = ?
-              AND LOWER(TRIM(status))
-                    IN ('pending', 'accepted')
+              AND LOWER(TRIM(status)) = 'pending'
             LIMIT 1
         ");
 
+        if (!$stmt) {
+            die("Database error: " . $conn->error);
+        }
+
         $stmt->bind_param(
             "ii",
-            $mentor_id,
+            $mentor["alumni_id"],
             $mentee_id
         );
+
         $stmt->execute();
 
         $result = $stmt->get_result();
-
-        $existingRequest =
-            $result->fetch_assoc();
+        $existing = $result->fetch_assoc();
 
         $stmt->close();
 
+        if ($existing) {
 
-        if ($existingRequest) {
-
-            $error =
-                "You already have an active mentorship request with this mentor.";
+            $error = "You already have a pending request with this mentor.";
 
         } else {
 
-
             /*
             |--------------------------------------------------------------------------
-            | Create Request
+            | INSERT NEW MENTORSHIP REQUEST
             |--------------------------------------------------------------------------
             */
 
-            $status = "Pending";
-
+            $status = "pending";
 
             $stmt = $conn->prepare("
                 INSERT INTO mentorship_requests
@@ -251,59 +207,52 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     created_at
                 )
                 VALUES
-                (?, ?, ?, ?, NOW())
+                (
+                    ?,
+                    ?,
+                    ?,
+                    ?,
+                    NOW()
+                )
             ");
 
-
             if (!$stmt) {
+                die("Database error: " . $conn->error);
+            }
 
-                $error =
-                    "Database error: " . $conn->error;
+            $stmt->bind_param(
+                "iiss",
+                $mentor["alumni_id"],
+                $mentee_id,
+                $message,
+                $status
+            );
+
+            if ($stmt->execute()) {
+
+                $success = "Mentorship request sent successfully.";
+
+                /*
+                |--------------------------------------------------------------------------
+                | CLEAR MESSAGE
+                |--------------------------------------------------------------------------
+                */
+
+                $message = "";
 
             } else {
 
-
-                $stmt->bind_param(
-                    "iiss",
-                    $mentor_id,
-                    $mentee_id,
-                    $message,
-                    $status
-                );
-
-
-                if ($stmt->execute()) {
-
-                    $stmt->close();
-
-                    header(
-                        "Location: index.php?request=success"
-                    );
-
-                    exit;
-
-                } else {
-
-                    $error =
-                        "Unable to send mentorship request.";
-
-                    $stmt->close();
-
-                }
-
+                $error = "Unable to send mentorship request.";
             }
 
+            $stmt->close();
         }
-
     }
-
 }
 
 ?>
 
-
 <!DOCTYPE html>
-
 <html lang="en">
 
 <head>
@@ -320,267 +269,191 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         <?= e(SITE_NAME) ?>
     </title>
 
-
     <link
         rel="stylesheet"
         href="../../assets/css/style.css"
     >
 
-
     <style>
 
         .request-wrapper {
-
-            max-width: 800px;
-
+            max-width: 900px;
             margin: 40px auto;
-
             padding: 20px;
-
         }
-
 
         .back-button {
-
             display: inline-block;
-
             margin-bottom: 20px;
-
             padding: 10px 16px;
-
             border: 1px solid #8b5e3c;
-
             border-radius: 8px;
-
             color: #8b5e3c;
-
             background: #ffffff;
-
             text-decoration: none;
-
         }
-
 
         .back-button:hover {
-
             background: #8b5e3c;
-
             color: #ffffff;
-
         }
-
-
-        .mentor-summary {
-
-            background: #ffffff;
-
-            border: 1px solid #eeeeee;
-
-            border-radius: 14px;
-
-            padding: 25px;
-
-            margin-bottom: 20px;
-
-            box-shadow:
-                0 5px 20px
-                rgba(0, 0, 0, 0.05);
-
-        }
-
-
-        .mentor-summary h1 {
-
-            color: #4a2c1d;
-
-            margin-top: 0;
-
-            margin-bottom: 8px;
-
-        }
-
-
-        .mentor-expertise {
-
-            color: #7a4b2a;
-
-            font-weight: 600;
-
-            margin-bottom: 15px;
-
-        }
-
-
-        .mentor-info {
-
-            margin-bottom: 10px;
-
-            color: #555555;
-
-        }
-
 
         .request-panel {
-
             background: #ffffff;
-
             border: 1px solid #eeeeee;
-
             border-radius: 14px;
-
-            padding: 25px;
-
+            padding: 30px;
             box-shadow:
                 0 5px 20px
                 rgba(0, 0, 0, 0.05);
-
         }
-
 
         .request-panel h2 {
-
             color: #4a2c1d;
-
             margin-top: 0;
-
         }
 
+        .mentor-card {
+            background: #f8f5f2;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 25px;
+        }
+
+        .mentor-name {
+            color: #4a2c1d;
+            font-size: 22px;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .mentor-expertise {
+            color: #7a4b2a;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        .mentor-bio {
+            color: #555555;
+            line-height: 1.6;
+        }
+
+        .mentor-skills {
+            margin-top: 12px;
+            color: #555555;
+        }
 
         .form-group {
-
             margin-bottom: 20px;
-
         }
-
 
         .form-group label {
-
             display: block;
-
             margin-bottom: 8px;
-
-            font-weight: 600;
-
             color: #4a2c1d;
-
+            font-weight: 600;
         }
-
-
-        .form-group textarea {
-
+ .form-group textarea {
             width: 100%;
-
-            min-height: 180px;
-
+            min-height: 160px;
             padding: 12px;
-
             border: 1px solid #dddddd;
-
             border-radius: 8px;
-
             resize: vertical;
             font-family: inherit;
-
             font-size: 15px;
-
             box-sizing: border-box;
-
         }
-
 
         .form-group textarea:focus {
-
             outline: none;
-
             border-color: #8b5e3c;
-
         }
-
 
         .submit-button {
-
-            display: inline-block;
-
-            padding: 11px 20px;
-
             border: none;
-
             border-radius: 8px;
-
+            padding: 12px 22px;
             background: #7a4b2a;
-
             color: #ffffff;
-
-            cursor: pointer;
-
-            font-size: 15px;
-
             font-weight: 600;
-
+            cursor: pointer;
+            font-size: 15px;
         }
-
 
         .submit-button:hover {
-
             background: #5f3921;
-
         }
-
-
-        .error-message {
-
-            margin-bottom: 20px;
-
-            padding: 12px 15px;
-
-            border-radius: 8px;
-
-            background: #ffebee;
-
-            color: #c62828;
-
-        }
-
 
         .success-message {
-
             margin-bottom: 20px;
-
             padding: 12px 15px;
-
             border-radius: 8px;
-
             background: #e8f5e9;
-
             color: #2e7d32;
-
         }
 
+        .error-message {
+            margin-bottom: 20px;
+            padding: 12px 15px;
+            border-radius: 8px;
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .view-requests {
+            display: inline-block;
+            margin-left: 10px;
+            padding: 12px 18px;
+            border-radius: 8px;
+            border: 1px solid #7a4b2a;
+            color: #7a4b2a;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .view-requests:hover {
+            background: #7a4b2a;
+            color: #ffffff;
+        }
+
+        @media (max-width: 650px) {
+
+            .request-panel {
+                padding: 20px;
+            }
+
+            .view-requests {
+                display: block;
+                margin-left: 0;
+                margin-top: 10px;
+                text-align: center;
+            }
+
+            .submit-button {
+                width: 100%;
+            }
+        }
 
     </style>
 
 </head>
 
-
 <body class="admin-body">
-
 
 <div class="admin-layout">
 
-
-    <!-- SIDEBAR -->
-
+    <!-- =====================================================
+         SIDEBAR
+    ====================================================== -->
 
     <aside class="admin-sidebar">
 
-
         <div class="admin-brand">
-
 
             <div class="brand-logo">
                 TM
             </div>
-
 
             <div>
 
@@ -594,42 +467,33 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             </div>
 
-
         </div>
 
-
         <nav class="admin-nav">
-
 
             <a href="../dashboard.php">
                 Dashboard
             </a>
 
-
             <div class="nav-section">
                 MY ACCOUNT
             </div>
-
 
             <a href="../profile.php">
                 My Profile
             </a>
 
-
             <a href="../employment.php">
                 Employment
             </a>
-
 
             <div class="nav-section">
                 OPPORTUNITIES
             </div>
 
-
             <a href="../jobs.php">
                 Jobs & Internships
             </a>
-
 
             <a
                 href="index.php"
@@ -638,36 +502,29 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 Mentorship
             </a>
 
-
             <div class="nav-section">
                 ACTIVITIES
             </div>
-
 
             <a href="#">
                 Projects
             </a>
 
-
             <a href="#">
                 Events
             </a>
-
 
             <div class="nav-section">
                 SYSTEM
             </div>
 
-
             <a href="#">
                 Notifications
             </a>
 
-
             <a href="#">
                 Settings
             </a>
-
 
             <a
                 href="../../auth/logout.php"
@@ -676,29 +533,26 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 Logout
             </a>
 
-
         </nav>
-
 
     </aside>
 
 
-    <!-- MAIN CONTENT -->
-
+    <!-- =====================================================
+         MAIN CONTENT
+    ====================================================== -->
 
     <main class="admin-main">
-
 
         <header class="admin-topbar">
 
             <div>
-
-                <h1>
+ <h1>
                     Request Mentorship
                 </h1>
 
                 <p>
-                    Send a request to this mentor.
+                    Send a mentorship request to this alumni mentor.
                 </p>
 
             </div>
@@ -708,9 +562,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
         <section class="dashboard-content">
 
-
             <div class="request-wrapper">
-
 
                 <a
                     href="index.php"
@@ -720,189 +572,148 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 </a>
 
 
-                <!-- MENTOR SUMMARY -->
-
-
-                <div class="mentor-summary">
-
-
-                    <h1>
-
-                        <?= e(
-                            $mentor["first_name"]
-                        ) ?>
-
-                        <?= e(
-                            $mentor["last_name"]
-                        ) ?>
-
-                    </h1>
-
-
-                    <div class="mentor-expertise">
-
-                        <?= e(
-                            $mentor["expertise"]
-                        ) ?>
-
-                    </div>
-
-
-                    <div class="mentor-info">
-                        <strong>
-                            Skills:
-                        </strong>
-
-                        <?= e(
-                            $mentor["skills"]
-                        ) ?>
-
-                    </div>
-
-
-                    <div class="mentor-info">
-
-                        <strong>
-                            Experience:
-                        </strong>
-
-                        <?= (int) $mentor[
-                            "experience_years"
-                        ] ?>
-
-                        years
-
-                    </div>
-
-
-                    <div class="mentor-info">
-
-                        <strong>
-                            Availability:
-                        </strong>
-
-                        <?= e(
-                            $mentor["availability"]
-                        ) ?>
-
-                    </div>
-
-
-                    <?php if (
-                        !empty($mentor["biography"])
-                    ): ?>
-
-                        <div class="mentor-info">
-
-                            <strong>
-                                About:
-                            </strong>
-
-                            <?= nl2br(
-                                e(
-                                    $mentor["biography"]
-                                )
-                            ) ?>
-
-                        </div>
-
-                    <?php endif; ?>
-
-
-                </div>
-
-
-                <!-- REQUEST FORM -->
-
-
                 <div class="request-panel">
 
-
                     <h2>
-                        Send Mentorship Request
+                        Request Mentorship
                     </h2>
 
 
-                    <?php if ($error !== ""): ?>
-
-
-                        <div class="error-message">
-
-                            <?= e($error) ?>
-
-                        </div>
-
-
-                    <?php endif; ?>
-
+                    <!-- SUCCESS -->
 
                     <?php if ($success !== ""): ?>
-
 
                         <div class="success-message">
 
                             <?= e($success) ?>
 
-                        </div>
+                            <div style="margin-top: 12px;">
 
+                                <a
+                                    href="my-requests.php"
+                                    class="view-requests"
+                                    style="margin-left: 0;"
+                                >
+                                    View My Requests
+                                </a>
+
+                            </div>
+
+                        </div>
 
                     <?php endif; ?>
 
 
-                    <form
-                        method="POST"
-                        action=""
-                    >
+                    <!-- ERROR -->
+
+                    <?php if ($error !== ""): ?>
+
+                        <div class="error-message">
+                            <?= e($error) ?>
+                        </div>
+
+                    <?php endif; ?>
 
 
-                        <div class="form-group">
+                    <!-- MENTOR INFORMATION -->
 
+                    <div class="mentor-card">
 
-                            <label for="message">
+                        <div class="mentor-name">
 
-                                Message
+                            <?= e($mentor["first_name"]) ?>
+                            <?= e($mentor["last_name"]) ?>
 
-                            </label>
+                        </div>
 
+                        <div class="mentor-expertise">
 
-                            <textarea
-                                id="message"
-                                name="message"
-                                placeholder="Introduce yourself and explain what you would like to learn from this mentor..."
-                                required
-                            ></textarea>
-
+                            <?= e($mentor["expertise"]) ?>
 
                         </div>
 
 
-                        <button
-                            type="submit"
-                            class="submit-button"
+                        <?php if (!empty($mentor["bio"])): ?>
+
+                            <div class="mentor-bio">
+
+                                <?= nl2br(
+                                    e($mentor["bio"])
+                                ) ?>
+
+                            </div>
+
+                        <?php endif; ?>
+
+
+                        <?php if (!empty($mentor["skills"])): ?>
+
+                            <div class="mentor-skills">
+
+                                <strong>
+                                    Skills:
+                                </strong>
+
+                                <?= e($mentor["skills"]) ?>
+
+                            </div>
+
+                        <?php endif; ?>
+
+                    </div>
+
+
+                    <!-- REQUEST FORM -->
+
+                    <?php if ($success === ""): ?>
+
+                        <form
+                            method="POST"
+                            action="request.php?mentor_id=<?= $mentor_id ?>"
                         >
 
-                            Send Mentorship Request
+                            <div class="form-group">
 
-                        </button>
+                                <label for="message">
+                                    Your Message
+                                </label>
+
+                                <textarea
+                                    id="message"
+                                    name="message"
+                                    placeholder="Introduce yourself and explain why you would like this mentor's guidance..."
+                                    required
+                                ><?= e($message ?? "") ?></textarea>
+
+                            </div>
 
 
-                    </form>
+                            <button
+                                type="submit"
+                                class="submit-button"
+                            >
+                                Send Mentorship Request
+                            </button>
+ <a
+                                href="my-requests.php"
+                                class="view-requests"
+                            >
+                                My Sent Requests
+                            </a>
 
+                        </form>
+
+                    <?php endif; ?>
 
                 </div>
 
-
             </div>
-
 
         </section>
 
-
     </main>
 
-
 </div>
-
 
 </body>
 

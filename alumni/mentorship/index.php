@@ -6,7 +6,6 @@ require_once "../../config/database.php";
 require_once "../../config/config.php";
 require_once "../../includes/functions.php";
 
-
 /*
 |--------------------------------------------------------------------------
 | ALUMNI ACCESS
@@ -14,22 +13,16 @@ require_once "../../includes/functions.php";
 */
 
 if (!isset($_SESSION["user_id"])) {
-
     header("Location: ../../auth/login.php");
     exit;
-
 }
 
 if ($_SESSION["role"] !== "alumni") {
-
     header("Location: ../../index.php");
     exit;
-
 }
 
-
 $user_id = (int) $_SESSION["user_id"];
-
 
 /*
 |--------------------------------------------------------------------------
@@ -47,31 +40,22 @@ $sql = "
 $stmt = $conn->prepare($sql);
 
 if (!$stmt) {
-
     die("Database error: " . $conn->error);
-
 }
 
 $stmt->bind_param("i", $user_id);
-
 $stmt->execute();
 
 $result = $stmt->get_result();
-
 $alumni = $result->fetch_assoc();
 
 $stmt->close();
 
-
 if (!$alumni) {
-
     die("Alumni profile not found.");
-
 }
 
-
 $alumni_id = (int) $alumni["alumni_id"];
-
 
 /*
 |--------------------------------------------------------------------------
@@ -81,7 +65,6 @@ $alumni_id = (int) $alumni["alumni_id"];
 
 $sql = "
     SELECT
-
         mp.mentor_profile_id,
         mp.alumni_id,
         mp.expertise,
@@ -106,17 +89,14 @@ $sql = "
     ORDER BY mp.created_at DESC
 ";
 
-
 $stmt = $conn->prepare($sql);
 
 if (!$stmt) {
-
     die("Database error: " . $conn->error);
-
 }
 
-
 $stmt->execute();
+
 $mentors = $stmt->get_result();
 
 ?>
@@ -139,14 +119,18 @@ $mentors = $stmt->get_result();
         <?= e(SITE_NAME) ?>
     </title>
 
-
     <link
         rel="stylesheet"
         href="../../assets/css/style.css"
     >
 
-
     <style>
+
+        /*
+        |--------------------------------------------------------------------------
+        | MENTOR GRID
+        |--------------------------------------------------------------------------
+        */
 
         .mentor-grid {
 
@@ -159,6 +143,12 @@ $mentors = $stmt->get_result();
 
         }
 
+
+        /*
+        |--------------------------------------------------------------------------
+        | MENTOR CARD
+        |--------------------------------------------------------------------------
+        */
 
         .mentor-card {
 
@@ -189,6 +179,12 @@ $mentors = $stmt->get_result();
 
         }
 
+
+        /*
+        |--------------------------------------------------------------------------
+        | PROFILE PHOTO
+        |--------------------------------------------------------------------------
+        */
 
         .mentor-photo {
 
@@ -224,8 +220,7 @@ $mentors = $stmt->get_result();
             align-items: center;
 
             justify-content: center;
-
-            font-size: 25px;
+font-size: 25px;
 
             font-weight: 700;
 
@@ -233,6 +228,12 @@ $mentors = $stmt->get_result();
 
         }
 
+
+        /*
+        |--------------------------------------------------------------------------
+        | MENTOR NAME
+        |--------------------------------------------------------------------------
+        */
 
         .mentor-card h3 {
 
@@ -245,6 +246,12 @@ $mentors = $stmt->get_result();
         }
 
 
+        /*
+        |--------------------------------------------------------------------------
+        | EXPERTISE
+        |--------------------------------------------------------------------------
+        */
+
         .mentor-expertise {
 
             color: #7a4b2a;
@@ -255,6 +262,12 @@ $mentors = $stmt->get_result();
 
         }
 
+
+        /*
+        |--------------------------------------------------------------------------
+        | CARD LABELS
+        |--------------------------------------------------------------------------
+        */
 
         .mentor-card-label {
 
@@ -274,10 +287,17 @@ $mentors = $stmt->get_result();
             color: #444444;
 
             line-height: 1.5;
+
             margin-bottom: 15px;
 
         }
 
+
+        /*
+        |--------------------------------------------------------------------------
+        | BUTTONS
+        |--------------------------------------------------------------------------
+        */
 
         .mentor-button {
 
@@ -287,8 +307,7 @@ $mentors = $stmt->get_result();
 
             border-radius: 7px;
 
-            background:  #7a4b2a;
-             
+            background: #7a4b2a;
 
             color: #ffffff;
 
@@ -297,6 +316,10 @@ $mentors = $stmt->get_result();
             font-size: 14px;
 
             font-weight: 600;
+
+            border: none;
+
+            cursor: pointer;
 
         }
 
@@ -308,6 +331,52 @@ $mentors = $stmt->get_result();
         }
 
 
+        /*
+        |--------------------------------------------------------------------------
+        | MY REQUESTS BUTTON
+        |--------------------------------------------------------------------------
+        */
+
+        .my-requests-button {
+
+            display: inline-block;
+
+            padding: 10px 16px;
+
+            border-radius: 8px;
+
+            background: #ffffff;
+
+            color: #7a4b2a;
+
+            border: 1px solid #7a4b2a;
+
+            text-decoration: none;
+
+            font-size: 14px;
+
+            font-weight: 600;
+
+            white-space: nowrap;
+
+        }
+
+
+        .my-requests-button:hover {
+
+            background: #7a4b2a;
+
+            color: #ffffff;
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | EMPTY STATE
+        |--------------------------------------------------------------------------
+        */
+
         .no-mentors {
 
             text-align: center;
@@ -318,6 +387,12 @@ $mentors = $stmt->get_result();
 
         }
 
+
+        /*
+        |--------------------------------------------------------------------------
+        | RESPONSIVE
+        |--------------------------------------------------------------------------
+        */
 
         @media (max-width: 1000px) {
 
@@ -355,21 +430,25 @@ $mentors = $stmt->get_result();
          SIDEBAR
     ====================================================== -->
 
-<?php
-$currentPage = "mentorship";
-require_once __DIR__ . "/../includes/sidebar.php";
-?>
-    
+    <?php
+
+    $currentPage = "mentorship";
+
+    require_once __DIR__ . "/../includes/sidebar.php";
+
+    ?>
+
+
     <!-- =====================================================
          MAIN CONTENT
     ====================================================== -->
 
-
     <main class="admin-main">
-
+<!-- =====================================================
+             TOP BAR
+        ====================================================== -->
 
         <header class="admin-topbar">
-
 
             <div>
 
@@ -383,9 +462,12 @@ require_once __DIR__ . "/../includes/sidebar.php";
 
             </div>
 
-
         </header>
 
+
+        <!-- =====================================================
+             CONTENT
+        ====================================================== -->
 
         <section class="dashboard-content">
 
@@ -393,8 +475,20 @@ require_once __DIR__ . "/../includes/sidebar.php";
             <div class="dashboard-panel">
 
 
-                <div class="panel-header">
+                <!-- =====================================================
+                     PANEL HEADER
+                ====================================================== -->
 
+                <div
+                    class="panel-header"
+                    style="
+                        display:flex;
+                        justify-content:space-between;
+                        align-items:center;
+                        gap:15px;
+                        flex-wrap:wrap;
+                    "
+                >
 
                     <div>
 
@@ -409,37 +503,53 @@ require_once __DIR__ . "/../includes/sidebar.php";
                     </div>
 
 
+                    <!-- =================================================
+                         MY REQUESTS BUTTON
+                    ================================================== -->
+
+                    <a
+                        href="my-requests.php"
+                        class="my-requests-button"
+                    >
+                        My Requests
+                    </a>
+                    
+                     <a
+                        href="received-requests.php"
+                        class="my-requests-button"
+                    >
+                        Received Requests
+                    </a>
+
                 </div>
 
+
+                <!-- =====================================================
+                     CHECK IF MENTORS EXIST
+                ====================================================== -->
 
                 <?php if ($mentors->num_rows === 0): ?>
 
 
-                   <div class="panel-header">
+                    <div class="no-mentors">
 
-    <div>
+                        <h3>
+                            No Mentors Available
+                        </h3>
 
-        <h2>
-            Available Mentors
-        </h2>
+                        <p>
+                            There are currently no alumni available for mentorship.
+                        </p>
 
-        <p>
-            Choose a mentor whose experience matches your goals.
-        </p>
-
-    </div>
+                    </div>
 
 
-    <a
-        href="my-requests.php"
-        class="mentor-button"
-    >
-        My Requests
-    </a>
+                <?php else: ?>
 
-</div>
-                    <?php else: ?>
 
+                    <!-- =================================================
+                         MENTOR GRID
+                    ================================================== -->
 
                     <div class="mentor-grid">
 
@@ -450,13 +560,13 @@ require_once __DIR__ . "/../includes/sidebar.php";
                             <div class="mentor-card">
 
 
-                                <!-- PROFILE PHOTO -->
-
+                                <!-- =====================================
+                                     PROFILE PHOTO
+                                ====================================== -->
 
                                 <?php if (
                                     !empty($mentor["profile_photo"])
                                 ): ?>
-
 
                                     <img
                                         src="../../uploads/<?= e($mentor["profile_photo"]) ?>"
@@ -464,15 +574,13 @@ require_once __DIR__ . "/../includes/sidebar.php";
                                         class="mentor-photo"
                                     >
 
-
                                 <?php else: ?>
-
 
                                     <div class="mentor-photo-placeholder">
 
                                         <?= e(
                                             strtoupper(
-                                                substr(
+substr(
                                                     $mentor["first_name"],
                                                     0,
                                                     1
@@ -480,15 +588,14 @@ require_once __DIR__ . "/../includes/sidebar.php";
                                             )
                                         ) ?>
 
-
                                     </div>
-
 
                                 <?php endif; ?>
 
 
-                                <!-- NAME -->
-
+                                <!-- =====================================
+                                     NAME
+                                ====================================== -->
 
                                 <h3>
 
@@ -503,8 +610,9 @@ require_once __DIR__ . "/../includes/sidebar.php";
                                 </h3>
 
 
-                                <!-- EXPERTISE -->
-
+                                <!-- =====================================
+                                     EXPERTISE
+                                ====================================== -->
 
                                 <div class="mentor-expertise">
 
@@ -515,15 +623,15 @@ require_once __DIR__ . "/../includes/sidebar.php";
                                 </div>
 
 
-                                <!-- EXPERIENCE -->
-
+                                <!-- =====================================
+                                     EXPERIENCE
+                                ====================================== -->
 
                                 <span class="mentor-card-label">
 
                                     Experience
 
                                 </span>
-
 
                                 <div class="mentor-card-value">
 
@@ -536,15 +644,15 @@ require_once __DIR__ . "/../includes/sidebar.php";
                                 </div>
 
 
-                                <!-- SKILLS -->
-
+                                <!-- =====================================
+                                     SKILLS
+                                ====================================== -->
 
                                 <span class="mentor-card-label">
 
                                     Skills
 
                                 </span>
-
 
                                 <div class="mentor-card-value">
 
@@ -555,15 +663,15 @@ require_once __DIR__ . "/../includes/sidebar.php";
                                 </div>
 
 
-                                <!-- AVAILABILITY -->
-
+                                <!-- =====================================
+                                     AVAILABILITY
+                                ====================================== -->
 
                                 <span class="mentor-card-label">
 
                                     Availability
 
                                 </span>
-
 
                                 <div class="mentor-card-value">
 
@@ -574,13 +682,15 @@ require_once __DIR__ . "/../includes/sidebar.php";
                                 </div>
 
 
-                                <!-- REQUEST BUTTON -->
-
+                                <!-- =====================================
+                                     REQUEST MENTORSHIP BUTTON
+                                ====================================== -->
 
                                 <a
-                                    href="request.php?id=<?= (int) $mentor["mentor_profile_id"] ?>"
-                                    class="mentor-button"
-                                >
+                                    href="request.php?mentor_id=<?= (int)
+                                     $mentor["mentor_profile_id"] ?>"
+                                    class="mentor-button">
+                                
 
                                     Request Mentorship
 
@@ -594,7 +704,9 @@ require_once __DIR__ . "/../includes/sidebar.php";
 
 
                     </div>
-                    <?php endif; ?>
+
+
+                <?php endif; ?>
 
 
             </div>
@@ -604,8 +716,6 @@ require_once __DIR__ . "/../includes/sidebar.php";
 
 
     </main>
-
-
 </div>
 
 

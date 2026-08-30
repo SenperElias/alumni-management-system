@@ -276,13 +276,27 @@ $notifications = $conn->query("
                                                 Edit
                                             </a>
 
-                                            <a
-                                                href="delete.php?id=<?= (int) $notification["notification_id"] ?>"
-                                                class="secondary-button"
-                                                onclick="return confirm('Are you sure you want to delete this notification?');"
-                                            >
-                                                Delete
-                                            </a>
+                                            <form
+    method="POST"
+    action="delete.php"
+    style="display:inline;"
+    onsubmit="return confirm('Are you sure you want to delete this notification?');"
+>
+    <?= csrf_field() ?>
+
+    <input
+        type="hidden"
+        name="id"
+        value="<?= (int) $notification["notification_id"] ?>"
+    >
+
+    <button
+        type="submit"
+        class="secondary-button"
+    >
+        Delete
+    </button>
+</form>
 
                                         </td>
 
