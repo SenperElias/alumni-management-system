@@ -1,11 +1,9 @@
-<?php
-
+ <?php
 session_start();
 
 require_once "../../config/database.php";
 require_once "../../config/config.php";
 require_once "../../includes/functions.php";
-
 
 /*
 |--------------------------------------------------------------------------
@@ -23,7 +21,6 @@ if ($_SESSION["role"] !== "admin") {
     exit;
 }
 
-
 /*
 |--------------------------------------------------------------------------
 | GET OPPORTUNITY ID
@@ -38,35 +35,75 @@ if ($opportunity_id <= 0) {
     die("Invalid opportunity ID.");
 }
 
-
 /*
 |--------------------------------------------------------------------------
-| APPROVE / REJECT
+| APPROVE / REJECT OPPORTUNITY
 |--------------------------------------------------------------------------
 */
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
+    /* CSRF protection */
+    verify_csrf_token();
+
     $action = $_POST["action"] ?? "";
 
     if ($action === "approve") {
-
         $new_status = "Approved";
-
     } elseif ($action === "reject") {
-
         $new_status = "Rejected";
-
     } else {
-
         $new_status = "";
     }
-
 
     if ($new_status !== "") {
 
         $reviewed_by = (int) $_SESSION["user_id"];
 
+        /*
+        |--------------------------------------------------------------------------
+        | Get Opportunity Information Before Updating
+        |--------------------------------------------------------------------------
+        */
+
+        $getOpportunity = $conn->prepare("
+            SELECT
+                opportunity_id,
+                title,
+                company_name,
+                type,
+                status
+            FROM opportunities
+            WHERE opportunity_id = ?
+            LIMIT 1
+        ");
+
+        if (!$getOpportunity) {
+            die("Database error: " . $conn->error);
+        }
+
+        $getOpportunity->bind_param(
+            "i",
+            $opportunity_id
+        );
+
+        $getOpportunity->execute();
+
+        $opportunityResult = $getOpportunity->get_result();
+
+        if ($opportunityResult->num_rows === 0) {
+            die("Opportunity not found.");
+        }
+
+        $oldOpportunity = $opportunityResult->fetch_assoc();
+
+        $getOpportunity->close();
+
+        /*
+        |--------------------------------------------------------------------------
+        | Update Opportunity Status
+        |--------------------------------------------------------------------------
+        */
 
         $sql = "
             UPDATE opportunities
@@ -77,14 +114,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             WHERE opportunity_id = ?
         ";
 
-
         $stmt = $conn->prepare($sql);
-
 
         if (!$stmt) {
             die("Database error: " . $conn->error);
         }
-
 
         $stmt->bind_param(
             "sii",
@@ -93,8 +127,119 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $opportunity_id
         );
 
-
         if ($stmt->execute()) {
+
+            /*
+            |--------------------------------------------------------------------------
+            | SEND NOTIFICATION TO ALL ALUMNI
+            |--------------------------------------------------------------------------
+            |
+            | Notifications are sent ONLY when the opportunity is approved.
+            |
+            */
+
+            if (
+                $new_status === "Approved" &&
+                strtolower(trim($oldOpportunity["status"])) === "pending"
+            ) {
+
+                $notificationTitle =
+                    "New " .
+                    $oldOpportunity["type"] .
+                    " Opportunity";
+
+                $companyName =
+                    trim($oldOpportunity["company_name"] ?? "");
+
+                if ($companyName !== "") {
+ $notificationMessage =
+                        "A new " .
+                        $oldOpportunity["type"] .
+                        " opportunity has been posted: " .
+                        $oldOpportunity["title"] .
+                        " at " .
+                        $companyName .
+                        ".";
+
+                } else {
+
+                    $notificationMessage =
+                        "A new " .
+                        $oldOpportunity["type"] .
+                        " opportunity has been posted: " .
+                        $oldOpportunity["title"] .
+                        ".";
+                }
+
+                /*
+                |--------------------------------------------------------------------------
+                | Get All Alumni Users
+                |--------------------------------------------------------------------------
+                */
+
+                $alumniUsers = $conn->query("
+                    SELECT user_id
+                    FROM users
+                    WHERE role = 'alumni'
+                ");
+
+                if ($alumniUsers) {
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Create Notification
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $notificationStmt = $conn->prepare("
+                        INSERT INTO notifications
+                        (
+                            user_id,
+                            title,
+                            message,
+                            type,
+                            is_read,
+                            created_at
+                        )
+                        VALUES
+                        (?, ?, ?, ?, 0, NOW())
+                    ");
+
+                    if ($notificationStmt) {
+
+                        $notificationType = "Opportunity";
+
+                        while (
+                            $alumniUser =
+                            $alumniUsers->fetch_assoc()
+                        ) {
+
+                            $alumniUserId =
+                                (int) $alumniUser["user_id"];
+
+                            $notificationStmt->bind_param(
+                                "isss",
+                                $alumniUserId,
+                                $notificationTitle,
+                                $notificationMessage,
+                                $notificationType
+                            );
+
+                            $notificationStmt->execute();
+                        }
+
+                        $notificationStmt->close();
+                    }
+                }
+            }
+
+            $stmt->close();
+
+            /*
+            |--------------------------------------------------------------------------
+            | Return To Opportunity
+            |--------------------------------------------------------------------------
+            */
 
             header(
                 "Location: view.php?id=" .
@@ -107,6 +252,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
         } else {
 
+            $stmt->close();
+
             die(
                 "Failed to update opportunity: " .
                 $stmt->error
@@ -114,7 +261,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         }
     }
 }
-
 
 /*
 |--------------------------------------------------------------------------
@@ -130,33 +276,28 @@ $sql = "
     LIMIT 1
 ";
 
-
 $stmt = $conn->prepare($sql);
 
 if (!$stmt) {
     die("Database error: " . $conn->error);
 }
 
-
 $stmt->bind_param(
     "i",
     $opportunity_id
 );
 
-
 $stmt->execute();
 
 $result = $stmt->get_result();
-
 
 if ($result->num_rows === 0) {
     die("Opportunity not found.");
 }
 
-
 $opportunity = $result->fetch_assoc();
 
-
+$stmt->close();
 /*
 |--------------------------------------------------------------------------
 | SUCCESS MESSAGE
@@ -167,9 +308,7 @@ $success = $_GET["success"] ?? "";
 
 ?>
 
-
 <!DOCTYPE html>
-
 <html lang="en">
 
 <head>
@@ -186,12 +325,10 @@ $success = $_GET["success"] ?? "";
         <?= e(SITE_NAME) ?>
     </title>
 
-
     <link
         rel="stylesheet"
         href="../../assets/css/style.css"
     >
-
 
     <style>
 
@@ -203,16 +340,13 @@ $success = $_GET["success"] ?? "";
             margin-bottom: 25px;
         }
 
-
         .opportunity-view-header h2 {
             margin: 8px 0;
         }
 
-
         .opportunity-view-header p {
             margin: 0;
         }
-
 
         .opportunity-type {
             display: inline-block;
@@ -223,6 +357,7 @@ $success = $_GET["success"] ?? "";
             background: #f1e7df;
             color: #7a4b2a;
         }
+
         .opportunity-info-grid {
             display: grid;
             grid-template-columns:
@@ -231,13 +366,11 @@ $success = $_GET["success"] ?? "";
             margin-top: 20px;
         }
 
-
         .opportunity-info-item {
             padding: 15px;
             background: #faf8f6;
             border-radius: 8px;
         }
-
 
         .opportunity-info-item span {
             display: block;
@@ -246,38 +379,34 @@ $success = $_GET["success"] ?? "";
             margin-bottom: 5px;
         }
 
-
         .opportunity-info-item strong {
             color: #333;
         }
-
 
         .opportunity-description {
             line-height: 1.7;
             color: #444;
         }
 
-
-        /* =====================================================
-           REVIEW SECTION
-        ===================================================== */
+        /*
+        =====================================================
+        REVIEW SECTION
+        =====================================================
+        */
 
         .review-panel {
             margin-top: 25px;
             border: 2px solid #d8c5b5;
         }
 
-
         .review-panel h2 {
             margin-top: 0;
             margin-bottom: 8px;
         }
 
-
         .review-panel p {
             color: #666;
         }
-
 
         .review-status {
             display: inline-block;
@@ -287,14 +416,12 @@ $success = $_GET["success"] ?? "";
             font-weight: 600;
         }
 
-
         .review-buttons {
             display: flex;
             gap: 15px;
             align-items: center;
             margin-top: 20px;
         }
-
 
         .review-buttons button {
             min-width: 130px;
@@ -306,28 +433,23 @@ $success = $_GET["success"] ?? "";
             cursor: pointer;
         }
 
-
         .approve-button {
             background: #7a4b2a;
             color: white;
         }
 
-
         .approve-button:hover {
             background: #60391f;
         }
-
 
         .reject-button {
             background: #b3261e;
             color: white;
         }
 
-
         .reject-button:hover {
             background: #8f1e18;
         }
-
 
         .success-message {
             padding: 15px 18px;
@@ -338,7 +460,6 @@ $success = $_GET["success"] ?? "";
             border: 1px solid #b7dfba;
         }
 
-
         .warning-message {
             padding: 15px 18px;
             margin-bottom: 20px;
@@ -348,26 +469,21 @@ $success = $_GET["success"] ?? "";
             border: 1px solid #ead49a;
         }
 
-
         @media (max-width: 700px) {
 
             .opportunity-view-header {
                 flex-direction: column;
             }
 
-
             .opportunity-info-grid {
                 grid-template-columns: 1fr;
             }
-
 
             .review-buttons {
                 flex-direction: column;
                 align-items: stretch;
             }
-
-
-            .review-buttons button {
+ .review-buttons button {
                 width: 100%;
             }
 
@@ -377,12 +493,9 @@ $success = $_GET["success"] ?? "";
 
 </head>
 
-
 <body class="admin-body">
 
-
 <div class="admin-layout">
-
 
     <!-- =====================================================
          SIDEBAR
@@ -390,14 +503,11 @@ $success = $_GET["success"] ?? "";
 
     <aside class="admin-sidebar">
 
-
         <div class="admin-brand">
-
 
             <div class="brand-logo">
                 TM
             </div>
-
 
             <div>
 
@@ -405,34 +515,27 @@ $success = $_GET["success"] ?? "";
                     Alumni System
                 </strong>
 
-
                 <small>
                     Admin Portal
                 </small>
 
             </div>
 
-
         </div>
 
-
         <nav class="admin-nav">
-
 
             <a href="../dashboard.php">
                 Dashboard
             </a>
 
-
             <div class="nav-section">
                 MANAGEMENT
             </div>
 
-
             <a href="../alumni/index.php">
                 Alumni
             </a>
-
 
             <a
                 href="index.php"
@@ -441,49 +544,41 @@ $success = $_GET["success"] ?? "";
                 Opportunities
             </a>
 
-
             <a href="#">
                 Events
             </a>
+
             <a href="#">
                 Mentorship
             </a>
-
 
             <a href="#">
                 Projects
             </a>
 
-
             <div class="nav-section">
                 REPORTS
             </div>
-
 
             <a href="#">
                 Employment Reports
             </a>
 
-
             <a href="#">
                 Alumni Reports
             </a>
-
 
             <div class="nav-section">
                 SYSTEM
             </div>
 
-
-            <a href="#">
+            <a href="../notification/index.php">
                 Notifications
             </a>
-
 
             <a href="#">
                 Settings
             </a>
-
 
             <a
                 href="../../auth/logout.php"
@@ -492,13 +587,9 @@ $success = $_GET["success"] ?? "";
                 Logout
             </a>
 
-
         </nav>
 
-
     </aside>
-
-
 
     <!-- =====================================================
          MAIN CONTENT
@@ -506,9 +597,7 @@ $success = $_GET["success"] ?? "";
 
     <main class="admin-main">
 
-
         <header class="admin-topbar">
-
 
             <div>
 
@@ -516,13 +605,11 @@ $success = $_GET["success"] ?? "";
                     Opportunity Details
                 </h1>
 
-
                 <p>
                     Review and manage this opportunity.
                 </p>
 
             </div>
-
 
             <a
                 href="index.php"
@@ -531,13 +618,9 @@ $success = $_GET["success"] ?? "";
                 ← Back
             </a>
 
-
         </header>
 
-
-
         <section class="dashboard-content">
-
 
             <!-- =================================================
                  SUCCESS MESSAGE
@@ -550,6 +633,10 @@ $success = $_GET["success"] ?? "";
                     Opportunity has been
                     <strong>approved</strong>
                     successfully.
+
+                    <br>
+
+                    Alumni have been notified.
 
                 </div>
 
@@ -569,19 +656,15 @@ $success = $_GET["success"] ?? "";
             <?php endif; ?>
 
 
-
             <!-- =================================================
                  BASIC INFORMATION
             ================================================== -->
 
             <div class="dashboard-panel">
 
-
                 <div class="opportunity-view-header">
 
-
                     <div>
-
 
                         <span class="opportunity-type">
 
@@ -591,15 +674,12 @@ $success = $_GET["success"] ?? "";
 
                         </span>
 
-
                         <h2>
 
                             <?= e(
                                 $opportunity["title"]
                             ) ?>
-
-                        </h2>
-
+ </h2>
 
                         <p>
 
@@ -614,15 +694,13 @@ $success = $_GET["success"] ?? "";
 
                         </p>
 
-
                     </div>
-
 
                     <div>
 
-
                         <span
-                            class="status-badge <?= e(
+                            class="status-badge
+                            <?= e(
                                 strtolower(
                                     $opportunity["status"]
                                 )
@@ -635,18 +713,14 @@ $success = $_GET["success"] ?? "";
 
                         </span>
 
-
                     </div>
 
-
                 </div>
-
 
 
                 <!-- INFORMATION -->
 
                 <div class="opportunity-info-grid">
-
 
                     <div class="opportunity-info-item">
 
@@ -654,9 +728,9 @@ $success = $_GET["success"] ?? "";
                             Location
                         </span>
 
-
                         <strong>
-                         <?= e(
+
+                            <?= e(
                                 !empty(
                                     $opportunity["location"]
                                 )
@@ -669,13 +743,11 @@ $success = $_GET["success"] ?? "";
                     </div>
 
 
-
                     <div class="opportunity-info-item">
 
                         <span>
                             Deadline
                         </span>
-
 
                         <strong>
 
@@ -705,13 +777,11 @@ $success = $_GET["success"] ?? "";
                     </div>
 
 
-
                     <div class="opportunity-info-item">
 
                         <span>
                             Created By
                         </span>
-
 
                         <strong>
 
@@ -725,13 +795,11 @@ $success = $_GET["success"] ?? "";
                     </div>
 
 
-
                     <div class="opportunity-info-item">
 
                         <span>
                             Created At
                         </span>
-
 
                         <strong>
 
@@ -744,12 +812,9 @@ $success = $_GET["success"] ?? "";
 
                     </div>
 
-
                 </div>
 
-
             </div>
-
 
 
             <!-- =================================================
@@ -758,11 +823,9 @@ $success = $_GET["success"] ?? "";
 
             <div class="dashboard-panel">
 
-
                 <h2>
                     Description
                 </h2>
-
 
                 <div class="opportunity-description">
 
@@ -781,8 +844,7 @@ $success = $_GET["success"] ?? "";
                         );
 
                     } else {
-
-                        echo "No description provided.";
+ echo "No description provided.";
 
                     }
 
@@ -790,9 +852,7 @@ $success = $_GET["success"] ?? "";
 
                 </div>
 
-
             </div>
-
 
 
             <!-- =================================================
@@ -801,11 +861,9 @@ $success = $_GET["success"] ?? "";
 
             <div class="dashboard-panel">
 
-
                 <h2>
                     Requirements
                 </h2>
-
 
                 <div class="opportunity-description">
 
@@ -833,21 +891,18 @@ $success = $_GET["success"] ?? "";
 
                 </div>
 
-
             </div>
-
 
 
             <!-- =================================================
                  CONTACT INFORMATION
             ================================================== -->
-             <div class="dashboard-panel">
 
+            <div class="dashboard-panel">
 
                 <h2>
                     Contact Information
                 </h2>
-
 
                 <div class="opportunity-description">
 
@@ -875,9 +930,7 @@ $success = $_GET["success"] ?? "";
 
                 </div>
 
-
             </div>
-
 
 
             <!-- =================================================
@@ -886,20 +939,15 @@ $success = $_GET["success"] ?? "";
 
             <div class="dashboard-panel review-panel">
 
-
                 <h2>
                     Review Opportunity
                 </h2>
-
 
                 <p>
                     Current opportunity status:
                 </p>
 
-
-                <span
-                    class="review-status"
-                >
+                <span class="review-status">
 
                     <?= e(
                         $opportunity["status"]
@@ -907,26 +955,29 @@ $success = $_GET["success"] ?? "";
 
                 </span>
 
-<?php if (
-    strtolower(trim($opportunity["status"])) === "pending"
-): ?>
 
-
-
+                <?php if (
+                    strtolower(
+                        trim(
+                            $opportunity["status"]
+                        )
+                    ) === "pending"
+                ): ?>
 
                     <p>
+
                         Review this opportunity and choose
                         whether it should be available to alumni.
-                    </p>
 
+                    </p>
 
                     <form
                         method="POST"
                     >
 
+                        <?= csrf_field() ?>
 
                         <div class="review-buttons">
-
 
                             <!-- REJECT -->
 
@@ -935,38 +986,36 @@ $success = $_GET["success"] ?? "";
                                 name="action"
                                 value="reject"
                                 class="reject-button"
-                                onclick="return confirm('Are you sure you want to reject this opportunity?');"
+                                onclick="
+                                    return confirm(
+                                        'Are you sure you want to reject this opportunity?'
+                                    );
+                                "
                             >
-
                                 Reject
-
                             </button>
 
 
-
                             <!-- APPROVE -->
-
-                            <button
+ <button
                                 type="submit"
                                 name="action"
                                 value="approve"
                                 class="approve-button"
-                                onclick="return confirm('Are you sure you want to approve this opportunity?');"
+                                onclick="
+                                    return confirm(
+                                        'Are you sure you want to approve this opportunity?'
+                                    );
+                                "
                             >
-
                                 Approve
-
                             </button>
-
 
                         </div>
 
-
                     </form>
 
-
                 <?php else: ?>
-
 
                     <p>
 
@@ -974,16 +1023,13 @@ $success = $_GET["success"] ?? "";
 
                     </p>
 
-
                     <div class="opportunity-info-grid">
-
 
                         <div class="opportunity-info-item">
 
                             <span>
                                 Reviewed By
                             </span>
-
 
                             <strong>
 
@@ -1003,7 +1049,6 @@ $success = $_GET["success"] ?? "";
                                 Reviewed At
                             </span>
 
-
                             <strong>
 
                                 <?= e(
@@ -1015,22 +1060,17 @@ $success = $_GET["success"] ?? "";
 
                         </div>
 
-
                     </div>
 
+                <?php endif; ?>
 
-                <?php endif; ?>  
-                </div>
-
+            </div>
 
         </section>
 
-
     </main>
 
-
 </div>
-
 
 </body>
 

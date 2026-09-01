@@ -42,37 +42,194 @@ $status = trim($_GET["status"] ?? "");
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
-    $opportunityId = (int) ($_POST["opportunity_id"] ?? 0);
-    $action = $_POST["action"] ?? "";
+$opportunityId = (int) ($_POST["opportunity_id"] ?? 0);
+$action = $_POST["action"] ?? "";
 
-    if ($opportunityId > 0 && $action === "approve") {
+     if ($opportunityId > 0 && $action === "approve") {
 
-        $newStatus = "Approved";
+    $newStatus = "Approved";
 
-        $stmt = $conn->prepare(
-            "UPDATE opportunities
-             SET status = ?,
-                 reviewed_by = ?,
-                 reviewed_at = NOW(),
-                 updated_at = NOW()
-             WHERE opportunity_id = ?"
-        );
+    /*
+    |--------------------------------------------------------------------------
+    | Get Opportunity Information
+    |--------------------------------------------------------------------------
+    */
 
-        $stmt->bind_param(
-            "sii",
-            $newStatus,
-            $_SESSION["user_id"],
-            $opportunityId
-        );
+    $opportunityStmt = $conn->prepare("
+        SELECT title, type
+        FROM opportunities
+        WHERE opportunity_id = ?
+        LIMIT 1
+    ");
 
-        if ($stmt->execute()) {
-            header("Location: index.php?status=pending");
-            exit;
-        }
-
-        $stmt->close();
+    if (!$opportunityStmt) {
+        die("Database error: " . $conn->error);
     }
 
+    $opportunityStmt->bind_param(
+        "i",
+        $opportunityId
+    );
+
+    $opportunityStmt->execute();
+
+    $opportunityResult = $opportunityStmt->get_result();
+    $opportunity = $opportunityResult->fetch_assoc();
+
+    $opportunityStmt->close();
+
+    if (!$opportunity) {
+        die("Opportunity not found.");
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Update Opportunity Status
+    |--------------------------------------------------------------------------
+    */
+
+    $stmt = $conn->prepare("
+        UPDATE opportunities
+        SET
+            status = ?,
+            reviewed_by = ?,
+            reviewed_at = NOW(),
+            updated_at = NOW()
+        WHERE opportunity_id = ?
+          AND status = 'pending'
+    ");
+
+    if (!$stmt) {
+        die("Database error: " . $conn->error);
+    }
+
+    $stmt->bind_param(
+        "sii",
+        $newStatus,
+        $_SESSION["user_id"],
+        $opportunityId
+    );
+
+    if ($stmt->execute()) {
+
+        /*
+        |--------------------------------------------------------------------------
+        | Create Notification For All Alumni
+        |--------------------------------------------------------------------------
+        */
+
+        $notificationTitle = "";
+
+        if ($opportunity["type"] === "Job") {
+
+            $notificationTitle = "New Job Opportunity";
+
+            $notificationMessage =
+                "A new job opportunity \""
+                . $opportunity["title"]
+                . "\" is now available.";
+
+            $notificationType = "opportunity";
+
+        } elseif ($opportunity["type"] === "Internship") {
+
+            $notificationTitle = "New Internship Opportunity";
+
+            $notificationMessage =
+                "A new internship opportunity \""
+                . $opportunity["title"]
+                . "\" is now available.";
+
+            $notificationType = "internship";
+
+        } else {
+
+            $notificationTitle = "New Training Opportunity";
+
+            $notificationMessage =
+                "A new training opportunity \""
+                . $opportunity["title"]
+                . "\" is now available.";
+
+            $notificationType = "opportunity";
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Get All Alumni Users
+        |--------------------------------------------------------------------------
+        */
+
+        $alumniUsers = $conn->query("
+            SELECT user_id
+            FROM users
+            WHERE role = 'alumni'
+              AND account_status = 'active'
+        ");
+
+        if (!$alumniUsers) {
+            die("Unable to find alumni users: " . $conn->error);
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Insert Notification For Each Alumni
+        |--------------------------------------------------------------------------
+        */
+
+        $notificationStmt = $conn->prepare("
+            INSERT INTO notifications
+            (
+                user_id,
+                title,
+                message,
+                type,
+                opportunity_id,
+                is_read,
+                created_at
+            )
+            VALUES
+            (
+                ?,
+                ?,
+                ?,
+                ?,
+                ?,
+                0,
+                NOW()
+            )
+        ");
+
+        if (!$notificationStmt) {
+            die("Unable to prepare notification: " . $conn->error);
+        }
+ while ($alumniUser = $alumniUsers->fetch_assoc()) {
+
+            $alumniUserId = (int) $alumniUser["user_id"];
+
+            $notificationStmt->bind_param(
+                "isssi",
+                $alumniUserId,
+                $notificationTitle,
+                $notificationMessage,
+                $notificationType,
+                $opportunityId
+            );
+
+            $notificationStmt->execute();
+        }
+
+        $notificationStmt->close();
+
+        header(
+            "Location: index.php?status=pending&success=approved"
+        );
+
+        exit;
+    }
+
+    $stmt->close();
+}
 
     if ($opportunityId > 0 && $action === "reject") {
 

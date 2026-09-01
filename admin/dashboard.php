@@ -1,4 +1,4 @@
-<?php
+ <?php
 
 session_start();
 
@@ -6,10 +6,8 @@ require_once "../config/database.php";
 require_once "../config/config.php";
 require_once "../includes/functions.php";
 
-
-/*
-|--------------------------------------------------------------------------
-| Admin Access
+/*|--------------------------------------------------------------------------
+| ADMIN ACCESS
 |--------------------------------------------------------------------------
 */
 
@@ -23,10 +21,52 @@ if ($_SESSION["role"] !== "admin") {
     exit;
 }
 
+$adminUserId = (int) $_SESSION["user_id"];
 
-/*
+
+/*|--------------------------------------------------------------------------
+| MARK NOTIFICATION AS READ
 |--------------------------------------------------------------------------
-| Dashboard Statistics
+|
+| When the admin clicks a notification, this marks that
+| specific notification as read before returning to dashboard.
+|
+*/
+
+if (isset($_GET["mark_notification"])) {
+
+    $notificationId = (int) $_GET["mark_notification"];
+
+    if ($notificationId > 0) {
+
+        $stmt = $conn->prepare("
+            UPDATE notifications
+            SET is_read = 1
+            WHERE notification_id = ?
+              AND user_id = ?
+        ");
+
+        if ($stmt) {
+
+            $stmt->bind_param(
+                "ii",
+                $notificationId,
+                $adminUserId
+            );
+
+            $stmt->execute();
+
+            $stmt->close();
+        }
+    }
+
+    header("Location: dashboard.php");
+    exit;
+}
+
+
+/*|--------------------------------------------------------------------------
+| DASHBOARD STATISTICS
 |--------------------------------------------------------------------------
 */
 
@@ -46,7 +86,9 @@ $result = $conn->query("
 ");
 
 if ($result) {
+
     $row = $result->fetch_assoc();
+
     $totalAlumni = (int) $row["total"];
 }
 
@@ -64,8 +106,11 @@ if ($result) {
 
     $row = $result->fetch_assoc();
 
-    $totalEmployed = (int) ($row["employed"] ?? 0);
-    $totalUnemployed = (int) ($row["unemployed"] ?? 0);
+    $totalEmployed =
+        (int) ($row["employed"] ?? 0);
+
+    $totalUnemployed =
+        (int) ($row["unemployed"] ?? 0);
 }
 
 
@@ -83,15 +128,106 @@ if ($result) {
 
     $row = $result->fetch_assoc();
 
-    $totalOpportunities = (int) ($row["total"] ?? 0);
-    $pendingOpportunities = (int) ($row["pending"] ?? 0);
-    $approvedOpportunities = (int) ($row["approved"] ?? 0);
+    $totalOpportunities =
+        (int) ($row["total"] ?? 0);
+
+    $pendingOpportunities =
+        (int) ($row["pending"] ?? 0);
+
+    $approvedOpportunities =
+        (int) ($row["approved"] ?? 0);
 }
 
 
-/*
+/*|--------------------------------------------------------------------------
+| ADMIN NOTIFICATIONS
 |--------------------------------------------------------------------------
-| Recent Opportunities
+*/
+
+
+/* Get unread notification count */
+
+$unreadNotifications = 0;
+
+$stmt = $conn->prepare("
+    SELECT COUNT(*) AS total
+    FROM notifications
+    WHERE user_id = ?
+      AND is_read = 0
+");
+
+if ($stmt) {
+
+    $stmt->bind_param(
+        "i",
+        $adminUserId
+    );
+
+    $stmt->execute();
+
+    $notificationCountResult =
+        $stmt->get_result();
+
+    if ($notificationCountResult) {
+
+        $notificationCountRow =
+            $notificationCountResult->fetch_assoc();
+
+        $unreadNotifications =
+            (int) (
+                $notificationCountRow["total"] ?? 0
+            );
+    }
+
+    $stmt->close();
+}
+
+
+/* Get latest notifications */
+
+$adminNotifications = [];
+
+$stmt = $conn->prepare("
+    SELECT
+        notification_id,
+        title,
+        message,
+        type,
+        is_read,
+        created_at
+    FROM notifications
+    WHERE user_id = ?
+    AND is_read = 0
+    ORDER BY created_at DESC
+    LIMIT 10
+");
+
+if ($stmt) {
+
+    $stmt->bind_param(
+        "i",
+        $adminUserId
+    );
+
+    $stmt->execute();
+
+    $notificationResult =
+        $stmt->get_result();
+ while (
+        $notification =
+        $notificationResult->fetch_assoc()
+    ) {
+
+        $adminNotifications[] =
+            $notification;
+    }
+
+    $stmt->close();
+}
+
+
+/*|--------------------------------------------------------------------------
+| RECENT OPPORTUNITIES
 |--------------------------------------------------------------------------
 */
 
@@ -108,9 +244,7 @@ $recentOpportunities = $conn->query("
     LIMIT 5
 ");
 
-
 ?>
-
 
 <!DOCTYPE html>
 
@@ -135,26 +269,336 @@ $recentOpportunities = $conn->query("
         href="../assets/css/style.css"
     >
 
+    <style>
+
+        /*--------------------------------------------------------------
+        NOTIFICATION AREA
+        --------------------------------------------------------------*/
+
+        .admin-notification-area {
+            position: relative;
+            margin-left: auto;
+        }
+
+
+        /*--------------------------------------------------------------
+        NOTIFICATION BELL
+        --------------------------------------------------------------*/
+
+        .notification-bell-button {
+
+            position: relative;
+
+            width: 44px;
+            height: 44px;
+
+            border: 1px solid #e5e0dc;
+
+            border-radius: 50%;
+
+            background: #ffffff;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            cursor: pointer;
+
+            font-size: 20px;
+
+            color: #4a2c1d;
+
+            transition: 0.2s;
+        }
+
+
+        .notification-bell-button:hover {
+
+            background: #f8f5f2;
+        }
+
+
+        /*--------------------------------------------------------------
+        NOTIFICATION COUNT
+        --------------------------------------------------------------*/
+
+        .notification-count {
+
+            position: absolute;
+
+            top: -4px;
+            right: -4px;
+
+            min-width: 19px;
+
+            height: 19px;
+
+            padding: 0 5px;
+
+            border-radius: 20px;
+
+            background: #c62828;
+
+            color: #ffffff;
+
+            font-size: 11px;
+
+            font-weight: 700;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            border: 2px solid #ffffff;
+        }
+
+
+        /*--------------------------------------------------------------
+        NOTIFICATION DROPDOWN
+        --------------------------------------------------------------*/
+
+        .notification-dropdown {
+
+            display: none;
+
+            position: absolute;
+
+            top: 52px;
+
+            right: 0;
+
+            width: 360px;
+
+            background: #ffffff;
+
+            border: 1px solid #eeeeee;
+
+            border-radius: 12px;
+
+            box-shadow:
+                0 10px 30px
+                rgba(0, 0, 0, 0.12);
+
+            z-index: 1000;
+
+            overflow: hidden;
+        }
+
+
+        .notification-dropdown.show {
+
+            display: block;
+        }
+
+
+        /*--------------------------------------------------------------
+        NOTIFICATION HEADER
+        --------------------------------------------------------------*/
+
+        .notification-header {
+
+            display: flex;
+
+            justify-content: space-between;
+
+            align-items: center;
+
+            padding: 15px 17px;
+
+            border-bottom: 1px solid #eeeeee;
+        }
+
+
+        .notification-header strong {
+
+            color: #4a2c1d;
+
+            font-size: 15px;
+        }
+
+
+        .notification-header a {
+
+            color: #7a4b2a;
+
+            font-size: 12px;
+
+            text-decoration: none;
+        }
+ /*--------------------------------------------------------------
+        NOTIFICATION LIST
+        --------------------------------------------------------------*/
+
+        .notification-list {
+
+            max-height: 400px;
+
+            overflow-y: auto;
+        }
+
+
+        .notification-item {
+
+            display: block;
+
+            padding: 14px 17px;
+
+            border-bottom: 1px solid #f0f0f0;
+
+            text-decoration: none;
+
+            color: inherit;
+        }
+
+
+        .notification-item:hover {
+
+            background: #faf8f6;
+        }
+
+
+        .notification-item.unread {
+
+            background: #fffaf5;
+        }
+
+
+        .notification-item-title {
+
+            display: flex;
+
+            justify-content: space-between;
+
+            gap: 10px;
+
+            color: #4a2c1d;
+
+            font-size: 14px;
+
+            font-weight: 700;
+
+            margin-bottom: 5px;
+        }
+
+
+        .notification-item-message {
+
+            color: #666666;
+
+            font-size: 13px;
+
+            line-height: 1.5;
+        }
+
+
+        .notification-item-date {
+
+            margin-top: 7px;
+
+            color: #999999;
+
+            font-size: 11px;
+        }
+
+
+        .notification-dot {
+
+            width: 7px;
+
+            height: 7px;
+
+            border-radius: 50%;
+
+            background: #c62828;
+
+            flex-shrink: 0;
+
+            margin-top: 4px;
+        }
+
+
+        .notification-empty {
+
+            padding: 35px 20px;
+
+            text-align: center;
+
+            color: #888888;
+
+            font-size: 13px;
+        }
+
+
+        /*--------------------------------------------------------------
+        TOP BAR
+        --------------------------------------------------------------*/
+
+        .admin-topbar {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 20px;
+        }
+
+
+        /*--------------------------------------------------------------
+        MOBILE
+        --------------------------------------------------------------*/
+
+        @media (max-width: 600px) {
+
+            .notification-dropdown {
+
+                position: fixed;
+
+                top: 70px;
+
+                left: 15px;
+
+                right: 15px;
+
+                width: auto;
+            }
+        }
+
+    </style>
+
 </head>
 
 
- <?php
+<body class="admin-body">
+
+
+<div class="admin-layout">
+
+
+    <!--==============================================================
+    SIDEBAR
+    ==============================================================-->
+
+    <?php
     require_once __DIR__ . "/includes/sidebar.php";
     ?>
 
 
-
-    <!-- =========================================================
-         MAIN CONTENT
-    ========================================================== -->
+    <!--==============================================================
+    MAIN CONTENT
+    ==============================================================-->
 
     <main class="admin-main">
 
 
-        <!-- TOP BAR -->
+        <!--============================================================
+        TOP BAR
+        ==============================================================-->
 
         <header class="admin-topbar">
-
 
             <div>
 
@@ -163,22 +607,208 @@ $recentOpportunities = $conn->query("
                 </h1>
 
                 <p>
-                    Welcome back. Manage your alumni system from here.
+                    Welcome back. Manage your alumni system
+                    from here.
                 </p>
 
             </div>
 
 
+            <!--========================================================
+            NOTIFICATION BELL
+            =========================================================-->
+
+            <div class="admin-notification-area">
+
+
+                <button
+                    type="button"
+                    class="notification-bell-button"
+                    id="notificationBell"
+                    aria-label="Notifications"
+                >
+
+                    🔔
+
+                    <?php if ($unreadNotifications > 0): ?>
+
+                        <span
+                            class="notification-count"
+                        >
+
+                            <?= $unreadNotifications > 99
+                                ? "99+"
+                                : $unreadNotifications
+                            ?>
+
+                        </span>
+ <?php endif; ?>
+
+                </button>
+
+
+                <!--==================================================
+                NOTIFICATION DROPDOWN
+                ===================================================-->
+
+                <div
+                    class="notification-dropdown"
+                    id="notificationDropdown"
+                >
+
+
+                    <div class="notification-header">
+
+                        <strong>
+                            Notifications
+                        </strong>
+
+                        <a
+                            href="notification/index.php"
+                        >
+                            View All
+                        </a>
+
+                    </div>
+
+
+                    <div class="notification-list">
+
+
+                        <?php if (
+                            count($adminNotifications) === 0
+                        ): ?>
+
+                            <div
+                                class="notification-empty"
+                            >
+
+                                No notifications yet.
+
+                            </div>
+
+
+                        <?php else: ?>
+
+
+                            <?php foreach (
+                                $adminNotifications
+                                as $notification
+                            ): ?>
+
+
+                                <?php
+
+                                /*
+                                |--------------------------------------------------
+                                | Notification URL
+                                |--------------------------------------------------
+                                |
+                                | Clicking an individual notification sends
+                                | the admin back to dashboard.php with the
+                                | notification ID.
+                                |
+                                | dashboard.php then marks it as read.
+                                |
+                                */
+
+                                $notificationUrl =
+                                    "dashboard.php?mark_notification=" .
+                                    (int) $notification[
+                                        "notification_id"
+                                    ];
+
+                                ?>
+
+
+                                <a
+                                    href="<?= e($notificationUrl) ?>"
+                                    class="notification-item
+                                    <?= (int)
+                                        $notification["is_read"] === 0
+                                        ? "unread"
+                                        : ""
+                                    ?>"
+                                >
+
+
+                                    <div
+                                        class="notification-item-title"
+                                    >
+
+                                        <span>
+
+                                            <?= e(
+                                                $notification["title"]
+                                            ) ?>
+
+                                        </span>
+
+
+                                        <?php if (
+                                            (int)
+                                            $notification["is_read"] === 0
+                                        ): ?>
+
+                                            <span
+                                                class="notification-dot"
+                                            ></span>
+
+                                        <?php endif; ?>
+
+
+                                    </div>
+
+
+                                    <div
+                                        class="notification-item-message"
+                                    >
+
+                                        <?= e(
+                                            $notification["message"]
+                                        ) ?>
+</div>
+
+
+                                    <div
+                                        class="notification-item-date"
+                                    >
+
+                                        <?= e(
+                                            $notification["created_at"]
+                                        ) ?>
+
+                                    </div>
+
+
+                                </a>
+
+
+                            <?php endforeach; ?>
+
+
+                        <?php endif; ?>
+
+
+                    </div>
+
+                </div>
+
+            </div>
+
         </header>
 
 
+        <!--============================================================
+        CONTENT
+        ==============================================================-->
 
         <section class="dashboard-content">
 
 
-            <!-- =================================================
-                 STATISTICS
-            ================================================== -->
+            <!--========================================================
+            STATISTICS
+            =========================================================-->
 
             <div class="stats-grid">
 
@@ -206,7 +836,6 @@ $recentOpportunities = $conn->query("
                 </div>
 
 
-
                 <!-- EMPLOYED -->
 
                 <div class="stat-card">
@@ -230,7 +859,6 @@ $recentOpportunities = $conn->query("
                 </div>
 
 
-
                 <!-- UNEMPLOYED -->
 
                 <div class="stat-card">
@@ -252,7 +880,6 @@ $recentOpportunities = $conn->query("
                     </div>
 
                 </div>
-
 
 
                 <!-- OPPORTUNITIES -->
@@ -281,16 +908,14 @@ $recentOpportunities = $conn->query("
             </div>
 
 
-
-            <!-- =================================================
-                 OPPORTUNITY SUMMARY
-            ================================================== -->
+            <!--========================================================
+            OPPORTUNITY SUMMARY
+            =========================================================-->
 
             <div class="dashboard-grid">
 
 
                 <div class="dashboard-panel">
-
 
                     <div class="panel-header">
 
@@ -321,12 +946,12 @@ $recentOpportunities = $conn->query("
                             <strong>
                                 <?= $pendingOpportunities ?>
                             </strong>
-                            </div>
+
+                        </div>
 
 
                         <div>
-
-                            <span>
+ <span>
                                 Approved
                             </span>
 
@@ -339,9 +964,7 @@ $recentOpportunities = $conn->query("
 
                     </div>
 
-
                 </div>
-
 
 
                 <!-- QUICK ACTIONS -->
@@ -395,23 +1018,20 @@ $recentOpportunities = $conn->query("
 
                     </div>
 
-
                 </div>
 
 
             </div>
 
 
-
-            <!-- =================================================
-                 RECENT OPPORTUNITIES
-            ================================================== -->
+            <!--========================================================
+            RECENT OPPORTUNITIES
+            =========================================================-->
 
             <div class="dashboard-panel">
 
 
                 <div class="panel-header">
-
 
                     <div>
 
@@ -420,7 +1040,8 @@ $recentOpportunities = $conn->query("
                         </h2>
 
                         <p>
-                            Latest jobs, internships and training opportunities.
+                            Latest jobs, internships and
+                            training opportunities.
                         </p>
 
                     </div>
@@ -433,9 +1054,7 @@ $recentOpportunities = $conn->query("
                         View All
                     </a>
 
-
                 </div>
-
 
 
                 <?php if (
@@ -494,11 +1113,11 @@ $recentOpportunities = $conn->query("
                                         <td>
 
                                             <strong>
+
                                                 <?= e(
                                                     $opportunity["title"]
                                                 ) ?>
-
-                                            </strong>
+</strong>
 
                                         </td>
 
@@ -524,7 +1143,8 @@ $recentOpportunities = $conn->query("
                                         <td>
 
                                             <span
-                                                class="status-badge <?= e(
+                                                class="status-badge
+                                                <?= e(
                                                     strtolower(
                                                         $opportunity["status"]
                                                     )
@@ -543,12 +1163,7 @@ $recentOpportunities = $conn->query("
                                         <td>
 
                                             <?= e(
-                                                date(
-                                                    "M d, Y",
-                                                    strtotime(
-                                                        $opportunity["created_at"]
-                                                    )
-                                                )
+                                                $opportunity["created_at"]
                                             ) ?>
 
                                         </td>
@@ -572,25 +1187,9 @@ $recentOpportunities = $conn->query("
                 <?php else: ?>
 
 
-                    <div class="empty-dashboard">
-
-
-                        <div>
-                            💼
-                        </div>
-
-
-                        <h3>
-                            No opportunities yet
-                        </h3>
-
-
-                        <p>
-                            Opportunities will appear here when they are created.
-                        </p>
-
-
-                    </div>
+                    <p>
+                        No opportunities found.
+                    </p>
 
 
                 <?php endif; ?>
@@ -606,6 +1205,82 @@ $recentOpportunities = $conn->query("
 
 
 </div>
+
+
+<!--==============================================================
+NOTIFICATION JAVASCRIPT
+===============================================================-->
+
+<script>
+
+document.addEventListener(
+    "DOMContentLoaded",
+    function () {
+
+
+        const bell =
+            document.getElementById(
+                "notificationBell"
+            );
+
+
+        const dropdown =
+            document.getElementById(
+                "notificationDropdown"
+            );
+
+
+        if (!bell || !dropdown) {
+
+            return;
+        }
+
+
+        /* Open / close dropdown */
+
+        bell.addEventListener(
+            "click",
+            function (event) {
+
+                event.stopPropagation();
+
+                dropdown.classList.toggle(
+                    "show"
+                );
+
+            }
+        );
+
+
+        /* Close when clicking outside */
+
+        document.addEventListener(
+            "click",
+            function (event) {
+
+                if (
+                    !dropdown.contains(
+                        event.target
+                    ) &&
+                    !bell.contains(
+                        event.target
+                    )
+                ) {
+
+                    dropdown.classList.remove(
+                        "show"
+                    );
+
+                }
+
+            }
+        );
+
+
+    }
+);
+
+</script>
 
 
 </body>

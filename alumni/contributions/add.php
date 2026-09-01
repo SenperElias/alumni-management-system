@@ -29,6 +29,21 @@ if ($_SESSION["role"] !== "alumni") {
 
 
 $user_id = (int) $_SESSION["user_id"];
+$alumni_sql = "SELECT alumni_id FROM alumni WHERE user_id = ? LIMIT 1";
+$alumni_stmt = $conn->prepare($alumni_sql);
+$alumni_stmt->bind_param("i", $user_id);
+$alumni_stmt->execute();
+
+$alumni_result = $alumni_stmt->get_result();
+$alumni = $alumni_result->fetch_assoc();
+
+$alumni_stmt->close();
+
+if (!$alumni) {
+    die("Alumni profile not found.");
+}
+
+$alumni_id = (int) $alumni["alumni_id"];
 
 
 /*
@@ -135,6 +150,7 @@ if (
             ] ?? ""
         );
 
+      
 
     $description =
         trim(
@@ -837,54 +853,45 @@ if (
                                 required
                             >
 
+<option value="">Select type</option>
 
-                                <option value="">
-                                    Select type
-                                </option>
+<option
+    value="financial_donation"
+    <?= $contribution_type === "financial_donation" ? "selected" : "" ?>
+>
+    Financial Donation
+</option>
 
+<option
+    value="equipment_donation"
+    <?= $contribution_type === "equipment_donation" ? "selected" : "" ?>
+>
+    Equipment Donation
+</option>
 
-                                <option
-                                    value="Donation"
-                                    <?= $contribution_type === "Donation"
-                                        ? "selected"
-                                        : ""
-                                    ?>
-                                >
-                                    Donation
-                                </option>
+<option
+    value="training_support"
+    <?= $contribution_type === "training_support" ? "selected" : "" ?>
+>
+    Training Support
+</option>
 
+<option
+    value="internship_support"
+    <?= $contribution_type === "internship_support" ? "selected" : "" ?>
+>
+    Internship Support
+</option>
 
-                                <option
-                                    value="Financial Contribution"
-                                    <?= $contribution_type === "Financial Contribution"
-                                        ? "selected"
-                                        : ""
-                                    ?>
-                                >
-                                    Financial Contribution
-                                </option>
-
-
-                                <option
-                                    value="Project Contribution"
-                                    <?= $contribution_type === "Project Contribution"
-                                        ? "selected"
-                                        : ""
-                                    ?>
-                                >
-                                    Project Contribution
-                                </option>
-
-
-                                <option
-                                    value="Other"
-                                    <?= $contribution_type === "Other"
-                                        ? "selected"
-                                        : ""
-                                    ?>
-                                >
-                                    Other
-                                </option>
+<option
+    value="other"
+    <?= $contribution_type === "other" ? "selected" : "" ?>
+>
+    Other
+</option>
+                               
+                                   
+                                
 
 
                             </select>

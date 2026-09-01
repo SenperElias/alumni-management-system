@@ -38,126 +38,242 @@ $error = "";
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
-    $title = trim($_POST["title"] ?? "");
-    $description = trim($_POST["description"] ?? "");
-    $eventDate = trim($_POST["event_date"] ?? "");
-    $startTime = trim($_POST["start_time"] ?? "");
-    $endTime = trim($_POST["end_time"] ?? "");
-    $location = trim($_POST["location"] ?? "");
-    $registrationDeadline = trim(
-        $_POST["registration_deadline"] ?? ""
-    );
-    $maxCapacity = trim($_POST["max_capacity"] ?? "");
-
     /*
     |--------------------------------------------------------------------------
-    | VALIDATION
+    | CSRF VALIDATION
     |--------------------------------------------------------------------------
     */
 
     if (
-        $title === "" ||
-        $eventDate === "" ||
-        $startTime === "" ||
-        $endTime === "" ||
-        $location === ""
+        !isset($_POST["csrf_token"]) ||
+        !verify_csrf_token($_POST["csrf_token"])
     ) {
-
-        $error = "Please fill in all required fields.";
-
+        $error = "Invalid security token. Please try again.";
     } else {
 
         /*
         |--------------------------------------------------------------------------
-        | MAX CAPACITY
+        | GET FORM DATA
         |--------------------------------------------------------------------------
         */
 
-        $maxCapacityValue =
-            $maxCapacity === ""
-                ? null
-                : (int) $maxCapacity;
+        $title = trim($_POST["title"] ?? "");
+        $description = trim($_POST["description"] ?? "");
+        $eventDate = trim($_POST["event_date"] ?? "");
+        $startTime = trim($_POST["start_time"] ?? "");
+        $endTime = trim($_POST["end_time"] ?? "");
+        $location = trim($_POST["location"] ?? "");
 
-        /*
-        |--------------------------------------------------------------------------
-        | EVENT STATUS
-        |--------------------------------------------------------------------------
-        |
-        | Database ENUM:
-        | draft
-        | published
-        | completed
-        | cancelled
-        |
-        */
-
-        $status = "published";
-
-        /*
-        |--------------------------------------------------------------------------
-        | CREATED BY
-        |--------------------------------------------------------------------------
-        */
-
-        $createdBy = (int) $_SESSION["user_id"];
-
-        /*
-        |--------------------------------------------------------------------------
-        | INSERT EVENT
-        |--------------------------------------------------------------------------
-        */
-
-        $stmt = $conn->prepare("
-            INSERT INTO events (
-                title,
-                description,
-                event_date,
-                start_time,
-                end_time,
-                location,
-                registration_deadline,
-                max_capacity,
-                status,
-                created_by
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ");
-
-        if (!$stmt) {
-            die("Database error: " . $conn->error);
-        }
-
-        $stmt->bind_param(
-            "sssssssisi",
-            $title,
-            $description,
-            $eventDate,
-            $startTime,
-            $endTime,
-            $location,
-            $registrationDeadline,
-            $maxCapacityValue,
-            $status,
-            $createdBy
+        $registrationDeadline = trim(
+            $_POST["registration_deadline"] ?? ""
         );
 
+        $maxCapacity = trim($_POST["max_capacity"] ?? "");
+
         /*
         |--------------------------------------------------------------------------
-        | EXECUTE
+        | VALIDATION
         |--------------------------------------------------------------------------
         */
 
-        if ($stmt->execute()) {
+        if (
+            $title === "" ||
+            $eventDate === "" ||
+            $startTime === "" ||
+            $endTime === "" ||
+            $location === ""
+        ) {
 
-            $stmt->close();
-header("Location: index.php");
-            exit;
+            $error = "Please fill in all required fields.";
+
+        } elseif ($eventDate < date("Y-m-d")) {
+
+            $error = "Event date cannot be in the past.";
+
+        } elseif ($endTime <= $startTime) {
+
+            $error = "End time must be later than start time.";
+
+        } elseif (
+            $registrationDeadline !== "" &&
+            $registrationDeadline > $eventDate
+        ) {
+
+            $error = "Registration deadline cannot be after the event date.";
+
+        } elseif (
+            $maxCapacity !== "" &&
+            (int) $maxCapacity < 1
+        ) {
+
+            $error = "Maximum capacity must be at least 1.";
 
         } else {
 
-            $error = "Unable to create event: " . $stmt->error;
+            /*
+            |--------------------------------------------------------------------------
+            | MAX CAPACITY
+            |--------------------------------------------------------------------------
+            */
 
-            $stmt->close();
+            $maxCapacityValue =
+                $maxCapacity === ""
+                    ? null
+                    : (int) $maxCapacity;
+
+            /*
+            |--------------------------------------------------------------------------
+            | EVENT STATUS
+            |--------------------------------------------------------------------------
+            |
+            | Admin-created events are published immediately.
+            |
+            | Database ENUM:
+            | draft
+            | published
+            | completed
+            | cancelled
+            |
+            */
+
+            $status = "published";
+ /*
+            |--------------------------------------------------------------------------
+            | CREATED BY
+            |--------------------------------------------------------------------------
+            */
+
+            $createdBy = (int) $_SESSION["user_id"];
+
+            /*
+            |--------------------------------------------------------------------------
+            | INSERT EVENT
+            |--------------------------------------------------------------------------
+            */
+
+            $stmt = $conn->prepare("
+                INSERT INTO events (
+                    title,
+                    description,
+                    event_date,
+                    start_time,
+                    end_time,
+                    location,
+                    registration_deadline,
+                    max_capacity,
+                    status,
+                    created_by
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ");
+
+            if (!$stmt) {
+
+                $error = "Database error: " . $conn->error;
+
+            } else {
+
+                $stmt->bind_param(
+                    "sssssssisi",
+                    $title,
+                    $description,
+                    $eventDate,
+                    $startTime,
+                    $endTime,
+                    $location,
+                    $registrationDeadline,
+                    $maxCapacityValue,
+                    $status,
+                    $createdBy
+                );
+
+                /*
+                |--------------------------------------------------------------------------
+                | EXECUTE
+                |--------------------------------------------------------------------------
+                */
+
+                if ($stmt->execute()) {
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | GET NEW EVENT ID
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $eventId = $stmt->insert_id;
+
+                    $stmt->close();
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | NOTIFY ACTIVE ALUMNI
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $notificationTitle = "New Event";
+
+                    $notificationMessage =
+                        'A new event "' .
+                        $title .
+                        '" has been published.';
+
+                    $notificationType = "event";
+
+                    $notifyStmt = $conn->prepare("
+                        INSERT INTO notifications (
+                            user_id,
+                            title,
+                            message,
+                            type,
+                            opportunity_id,
+                            event_id,
+                            is_read
+                        )
+                        SELECT
+                            user_id,
+                            ?,
+                            ?,
+                            ?,
+                            NULL,
+                            ?,
+                            0
+                        FROM users
+                        WHERE role = 'alumni'
+                          AND account_status = 'active'
+                    ");
+
+                    if ($notifyStmt) {
+
+                        $notifyStmt->bind_param(
+                            "sssi",
+                            $notificationTitle,
+                            $notificationMessage,
+                            $notificationType,
+                            $eventId
+                        );
+
+                        $notifyStmt->execute();
+                        $notifyStmt->close();
+                    }
+ /*
+                    |--------------------------------------------------------------------------
+                    | REDIRECT
+                    |--------------------------------------------------------------------------
+                    */
+
+                    header("Location: index.php");
+                    exit;
+
+                } else {
+
+                    $error =
+                        "Unable to create event: " .
+                        $stmt->error;
+
+                    $stmt->close();
+                }
+            }
         }
     }
 }
@@ -193,13 +309,16 @@ header("Location: index.php");
 
     <!--
     |--------------------------------------------------------------------------
-    | EXISTING SIDEBAR INCLUDE
+    | SIDEBAR
     |--------------------------------------------------------------------------
     -->
 
     <?php
+
     $currentPage = "events";
+
     require_once __DIR__ . "/../includes/sidebar.php";
+
     ?>
 
     <!--
@@ -228,6 +347,7 @@ header("Location: index.php");
 
         </header>
 
+
         <!-- CONTENT -->
 
         <section class="dashboard-content">
@@ -235,10 +355,13 @@ header("Location: index.php");
             <?php if ($error !== ""): ?>
 
                 <div class="error-message">
+
                     <?= e($error) ?>
+
                 </div>
 
             <?php endif; ?>
+
 
             <div class="dashboard-panel">
 
@@ -260,11 +383,16 @@ header("Location: index.php");
 
                 </div>
 
+
                 <!-- FORM -->
 
                 <form method="POST">
 
+                    <?= csrf_field() ?>
+
+
                     <div class="form-grid">
+
 
                         <!-- TITLE -->
 
@@ -287,6 +415,7 @@ header("Location: index.php");
 
                         </div>
 
+
                         <!-- LOCATION -->
 
                         <div class="form-group">
@@ -308,14 +437,15 @@ header("Location: index.php");
 
                         </div>
 
-                        <!-- EVENT DATE -->
 
-                        <div class="form-group">
+                        <!-- EVENT DATE -->
+ <div class="form-group">
 
                             <label for="event_date">
                                 Event Date *
                             </label>
- <input
+
+                            <input
                                 type="date"
                                 id="event_date"
                                 name="event_date"
@@ -326,6 +456,7 @@ header("Location: index.php");
                             >
 
                         </div>
+
 
                         <!-- START TIME -->
 
@@ -347,6 +478,7 @@ header("Location: index.php");
 
                         </div>
 
+
                         <!-- END TIME -->
 
                         <div class="form-group">
@@ -367,6 +499,7 @@ header("Location: index.php");
 
                         </div>
 
+
                         <!-- REGISTRATION DEADLINE -->
 
                         <div class="form-group">
@@ -385,6 +518,7 @@ header("Location: index.php");
                             >
 
                         </div>
+
 
                         <!-- MAX CAPACITY -->
 
@@ -413,6 +547,7 @@ header("Location: index.php");
 
                     </div>
 
+
                     <!-- DESCRIPTION -->
 
                     <div class="form-group">
@@ -423,7 +558,7 @@ header("Location: index.php");
 
                         <textarea
                             id="description"
-                            name="description"
+ name="description"
                             rows="6"
                             class="form-textarea"
                             placeholder="Describe the event..."
@@ -433,10 +568,12 @@ header("Location: index.php");
 
                     </div>
 
+
                     <!-- BUTTONS -->
 
                     <div class="profile-form-actions">
- <a
+
+                        <a
                             href="index.php"
                             class="secondary-button"
                         >

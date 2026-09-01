@@ -207,30 +207,35 @@ $result = $stmt->get_result();
                             name="status"
                         >
 
-                            <option value="">
-                                All Statuses
-                            </option>
+                            <option value="">All Statuses</option>
 
-                            <option
-                                value="Pending"
-                                <?= $status === "Pending" ? "selected" : "" ?>
-                            >
-                                Pending
-                            </option>
+<option
+    value="draft"
+    <?= $status === "draft" ? "selected" : "" ?>
+>
+    Draft
+</option>
 
-                            <option
-                                value="Approved"
-                                <?= $status === "Approved" ? "selected" : "" ?>
-                            >
-                                Approved
-                            </option>
+<option
+    value="published"
+    <?= $status === "published" ? "selected" : "" ?>
+>
+    Published
+</option>
 
-                            <option
-                                value="Rejected"
-                                <?= $status === "Rejected" ? "selected" : "" ?>
-                            >
-                                Rejected
-                            </option>
+<option
+    value="completed"
+    <?= $status === "completed" ? "selected" : "" ?>
+>
+    Completed
+</option>
+
+<option
+    value="cancelled"
+    <?= $status === "cancelled" ? "selected" : "" ?>
+>
+    Cancelled
+</option>
 
                         </select>
 

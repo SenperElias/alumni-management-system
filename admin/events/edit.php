@@ -80,7 +80,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     );
     $maxCapacity = trim($_POST["max_capacity"] ?? "");
     $status = trim($_POST["status"] ?? "");
-
+if (!in_array($status, ["draft", "published", "completed", "cancelled"], true)) {
+    $error = "Invalid event status.";
+}
     if (
         $title === "" ||
         $eventDate === "" ||
@@ -495,51 +497,45 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                         </div>
 
 
-                        <!-- STATUS -->
+                       <!-- STATUS -->
+<div class="form-group">
+    <label for="status">
+        Status
+    </label>
 
-                        <div class="form-group">
+    <select
+        id="status"
+        name="status"
+    >
+        <option
+            value="draft"
+            <?= $event["status"] === "draft" ? "selected" : "" ?>
+        >
+            Draft
+        </option>
 
-                            <label for="status">
-                                Status
-                            </label>
-                            <select
-                                id="status"
-                                name="status"
-                            >
+        <option
+            value="published"
+            <?= $event["status"] === "published" ? "selected" : "" ?>
+        >
+            Published
+        </option>
 
-                                <option
-                                    value="Pending"
-                                    <?= $event["status"] === "Pending"
-                                        ? "selected"
-                                        : "" ?>
-                                >
-                                    Pending
-                                </option>
+        <option
+            value="completed"
+            <?= $event["status"] === "completed" ? "selected" : "" ?>
+        >
+            Completed
+        </option>
 
-                                <option
-                                    value="Approved"
-                                    <?= $event["status"] === "Approved"
-                                        ? "selected"
-                                        : "" ?>
-                                >
-                                    Approved
-                                </option>
-
-                                <option
-                                    value="Rejected"
-                                    <?= $event["status"] === "Rejected"
-                                        ? "selected"
-                                        : "" ?>
-                                >
-                                    Rejected
-                                </option>
-
-                            </select>
-
-                        </div>
-
-                    </div>
-
+        <option
+            value="cancelled"
+            <?= $event["status"] === "cancelled" ? "selected" : "" ?>
+        >
+            Cancelled
+        </option>
+    </select>
+</div>
 
                     <!-- DESCRIPTION -->
 
@@ -560,26 +556,24 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                     </div>
 
-
+</div> <!-- End of form-grid -->        
                     <!-- BUTTONS -->
 
                     <div class="profile-form-actions">
+    <button
+        type="submit"
+        class="primary-button"
+    >
+        Save Changes
+    </button>
 
-                        <a
-                            href="view.php?id=<?= $eventId ?>"
-                            class="secondary-button"
-                        >
-                            Cancel
-                        </a>
-
-                        <button
-                            type="submit"
-                            class="primary-button"
-                        >
-                            Save Changes
-                        </button>
-
-                    </div>
+    <a
+        href="view.php?id=<?= $eventId ?>"
+        class="secondary-button"
+    >
+        Cancel
+    </a>
+</div>
 
                 </form>
 

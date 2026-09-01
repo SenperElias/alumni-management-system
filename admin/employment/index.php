@@ -1,4 +1,4 @@
-<?php
+ <?php
 
 session_start();
 
@@ -61,117 +61,282 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
         $error = "Invalid employment record.";
 
-    } elseif ($action === "approve") {
-
-        /*
-        |--------------------------------------------------------------------------
-        | VERIFY
-        |--------------------------------------------------------------------------
-        */
-
-        $verificationStatus = "verified";
-
-        $verificationNotes =
-            "Employment information verified by admin.";
-
-        $stmt = $conn->prepare(
-            "UPDATE employment
-             SET
-                Verification_status = ?,
-                Verification_notes = ?,
-                Updated_by = ?,
-                Updated_at = NOW()
-             WHERE employment_id = ?"
-        );
-
-        if (!$stmt) {
-
-            $error = "Unable to process the employment verification.";
-
-        } else {
-
-            $stmt->bind_param(
-                "ssii",
-                $verificationStatus,
-                $verificationNotes,
-                $adminId,
-                $employmentId
-            );
-
-            if ($stmt->execute()) {
-
-                $success =
-                    "Employment information verified successfully.";
-
-            } else {
-
-                $error =
-                    "Unable to update employment verification.";
-            }
-
-            $stmt->close();
-        }
-
-    } elseif ($action === "reject") {
-
-        /*
-        |--------------------------------------------------------------------------
-        | REJECT
-        |--------------------------------------------------------------------------
-        */
-
-        $verificationStatus = "rejected";
-
-        $verificationNotes =
-            trim($_POST["verification_notes"] ?? "");
-
-        if ($verificationNotes === "") {
-
-            $verificationNotes =
-                "Employment information rejected by admin.";
-        }
-
-        $stmt = $conn->prepare(
-            "UPDATE employment
-             SET
-                Verification_status = ?,
-                Verification_notes = ?,
-                Updated_by = ?,
-                Updated_at = NOW()
-             WHERE employment_id = ?"
-        );
-
-        if (!$stmt) {
-
-            $error =
-                "Unable to process the employment rejection.";
-
-        } else {
-
-            $stmt->bind_param(
-                "ssii",
-                $verificationStatus,
-                $verificationNotes,
-                $adminId,
-                $employmentId
-            );
-
-            if ($stmt->execute()) {
-
-                $success =
-                    "Employment information rejected.";
-
-            } else {
-
-                $error =
-                    "Unable to update employment verification.";
-            }
-
-            $stmt->close();
-        }
-
     } else {
-    $error = "Invalid verification action.";
+
+        /*
+        |--------------------------------------------------------------------------
+        | GET ALUMNI USER ID
+        |--------------------------------------------------------------------------
+        */
+
+        $userStmt = $conn->prepare("
+            SELECT
+                a.alumni_id,
+                a.user_id,
+                a.first_name,
+                a.last_name
+            FROM alumni a
+            INNER JOIN employment e
+                ON e.alumni_id = a.alumni_id
+            WHERE e.employment_id = ?
+            LIMIT 1
+        ");
+
+        if (!$userStmt) {
+
+            $error = "Unable to find the alumni account.";
+
+        } else {
+
+            $userStmt->bind_param(
+                "i",
+                $employmentId
+            );
+
+            $userStmt->execute();
+
+            $userResult = $userStmt->get_result();
+
+            if ($userResult->num_rows === 0) {
+
+                $error = "Alumni account not found.";
+
+            } else {
+
+                $alumniData = $userResult->fetch_assoc();
+
+                $alumniUserId = (int) $alumniData["user_id"];
+
+                $alumniName =
+                    $alumniData["first_name"] . " " .
+                    $alumniData["last_name"];
+
+                /*
+                |--------------------------------------------------------------------------
+                | VERIFY
+                |--------------------------------------------------------------------------
+                */
+
+                if ($action === "approve") {
+
+                    $verificationStatus = "verified";
+
+                    $verificationNotes =
+                        "Employment information verified by admin.";
+
+                    $stmt = $conn->prepare("
+                        UPDATE employment
+                        SET
+                            Verification_status = ?,
+                            Verification_notes = ?,
+                            Updated_by = ?,
+                            Updated_at = NOW()
+                        WHERE employment_id = ?
+                    ");
+
+                    if (!$stmt) {
+
+                        $error =
+                            "Unable to process the employment verification.";
+
+                    } else {
+
+                        $stmt->bind_param(
+                            "ssii",
+                            $verificationStatus,
+                            $verificationNotes,
+                            $adminId,
+                            $employmentId
+                        );
+
+                        if ($stmt->execute()) {
+ /*
+                            |--------------------------------------------------------------------------
+                            | CREATE NOTIFICATION
+                            |--------------------------------------------------------------------------
+                            */
+
+                            $notificationTitle =
+                                "Employment Information Verified";
+
+                            $notificationMessage =
+                                "Your employment information has been verified by the administrator.";
+
+                            $notificationType =
+                                "employment";
+
+                            $notificationStmt = $conn->prepare("
+                                INSERT INTO notifications
+                                (
+                                    user_id,
+                                    title,
+                                    message,
+                                    type,
+                                    is_read,
+                                    created_at
+                                )
+                                VALUES
+                                (
+                                    ?,
+                                    ?,
+                                    ?,
+                                    ?,
+                                    0,
+                                    NOW()
+                                )
+                            ");
+
+                            if ($notificationStmt) {
+
+                                $notificationStmt->bind_param(
+                                    "isss",
+                                    $alumniUserId,
+                                    $notificationTitle,
+                                    $notificationMessage,
+                                    $notificationType
+                                );
+
+                                $notificationStmt->execute();
+
+                                $notificationStmt->close();
+                            }
+
+                            $success =
+                                "Employment information verified successfully.";
+
+                        } else {
+
+                            $error =
+                                "Unable to update employment verification.";
+                        }
+
+                        $stmt->close();
+                    }
+
+                /*
+                |--------------------------------------------------------------------------
+                | REJECT
+                |--------------------------------------------------------------------------
+                */
+
+                } elseif ($action === "reject") {
+
+                    $verificationStatus = "rejected";
+
+                    $verificationNotes =
+                        trim($_POST["verification_notes"] ?? "");
+
+                    if ($verificationNotes === "") {
+
+                        $verificationNotes =
+                            "Employment information rejected by admin.";
+                    }
+
+                    $stmt = $conn->prepare("
+                        UPDATE employment
+                        SET
+                            Verification_status = ?,
+                            Verification_notes = ?,
+                            Updated_by = ?,
+                            Updated_at = NOW()
+                        WHERE employment_id = ?
+                    ");
+
+                    if (!$stmt) {
+
+                        $error =
+                            "Unable to process the employment rejection.";
+
+                    } else {
+
+                        $stmt->bind_param(
+                            "ssii",
+                            $verificationStatus,
+                            $verificationNotes,
+                            $adminId,
+                            $employmentId
+                        );
+
+                        if ($stmt->execute()) {
+ /*
+                            |--------------------------------------------------------------------------
+                            | CREATE NOTIFICATION
+                            |--------------------------------------------------------------------------
+                            */
+
+                            $notificationTitle =
+                                "Employment Information Rejected";
+
+                            $notificationMessage =
+                                "Your employment information was rejected.";
+
+                            if (!empty($verificationNotes)) {
+
+                                $notificationMessage .=
+                                    " Reason: " .
+                                    $verificationNotes;
+                            }
+
+                            $notificationType =
+                                "employment";
+
+                            $notificationStmt = $conn->prepare("
+                                INSERT INTO notifications
+                                (
+                                    user_id,
+                                    title,
+                                    message,
+                                    type,
+                                    is_read,
+                                    created_at
+                                )
+                                VALUES
+                                (
+                                    ?,
+                                    ?,
+                                    ?,
+                                    ?,
+                                    0,
+                                    NOW()
+                                )
+                            ");
+
+                            if ($notificationStmt) {
+
+                                $notificationStmt->bind_param(
+                                    "isss",
+                                    $alumniUserId,
+                                    $notificationTitle,
+                                    $notificationMessage,
+                                    $notificationType
+                                );
+
+                                $notificationStmt->execute();
+
+                                $notificationStmt->close();
+                            }
+
+                            $success =
+                                "Employment information rejected.";
+
+                        } else {
+
+                            $error =
+                                "Unable to update employment verification.";
+                        }
+
+                        $stmt->close();
+                    }
+
+                } else {
+
+                    $error =
+                        "Invalid verification action.";
+                }
+            }
+
+            $userStmt->close();
+        }
     }
 }
 
@@ -197,12 +362,9 @@ $sql = "
         e.Updated_by,
         e.created_at,
         e.Updated_at,
-
         a.first_name,
         a.last_name
-
     FROM employment e
-
     INNER JOIN alumni a
         ON e.alumni_id = a.alumni_id
 ";
@@ -231,8 +393,7 @@ if ($filter === "pending") {
         WHERE LOWER(TRIM(e.Verification_status)) = 'rejected'
     ";
 }
-
-$sql .= "
+ $sql .= "
     ORDER BY e.created_at DESC
 ";
 
@@ -265,21 +426,16 @@ if (!$stmt) {
 
 $countSql = "
     SELECT
-
         COUNT(*) AS total,
-
         SUM(
             LOWER(TRIM(Verification_status)) = 'pending'
         ) AS pending,
-
         SUM(
             LOWER(TRIM(Verification_status)) = 'verified'
         ) AS verified,
-
         SUM(
             LOWER(TRIM(Verification_status)) = 'rejected'
         ) AS rejected
-
     FROM employment
 ";
 
@@ -298,21 +454,17 @@ if ($countResult) {
 |--------------------------------------------------------------------------
 */
 
-$totalCount = (int) (
-    $counts["total"] ?? 0
-);
+$totalCount =
+    (int) ($counts["total"] ?? 0);
 
-$pendingCount = (int) (
-    $counts["pending"] ?? 0
-);
+$pendingCount =
+    (int) ($counts["pending"] ?? 0);
 
-$verifiedCount = (int) (
-    $counts["verified"] ?? 0
-);
+$verifiedCount =
+    (int) ($counts["verified"] ?? 0);
 
-$rejectedCount = (int) (
-    $counts["rejected"] ?? 0
-);
+$rejectedCount =
+    (int) ($counts["rejected"] ?? 0);
 
 ?>
 
@@ -379,6 +531,7 @@ $rejectedCount = (int) (
             font-size: 25px;
             color: #333;
         }
+
         .verification-filters {
             display: flex;
             gap: 10px;
@@ -433,8 +586,7 @@ $rejectedCount = (int) (
             font-size: 12px;
             font-weight: 700;
         }
-
-        .verification-badge.pending {
+ .verification-badge.pending {
             background: #fff4d6;
             color: #7a5700;
         }
@@ -551,6 +703,7 @@ $rejectedCount = (int) (
                 grid-template-columns:
                     repeat(2, 1fr);
             }
+
             .employment-info-grid {
                 grid-template-columns:
                     repeat(2, 1fr);
@@ -611,15 +764,16 @@ $rejectedCount = (int) (
         </header>
 
         <section class="dashboard-content">
-
-            <!-- =================================================
+             <!-- =================================================
                  MESSAGES
             ================================================== -->
 
             <?php if ($success !== ""): ?>
 
                 <div class="success-message">
+
                     <?= e($success) ?>
+
                 </div>
 
             <?php endif; ?>
@@ -628,7 +782,9 @@ $rejectedCount = (int) (
             <?php if ($error !== ""): ?>
 
                 <div class="error-message">
+
                     <?= e($error) ?>
+
                 </div>
 
             <?php endif; ?>
@@ -707,7 +863,6 @@ $rejectedCount = (int) (
                     All
                 </a>
 
-
                 <a
                     href="index.php?status=pending"
                     class="<?= $filter === 'pending' ? 'active' : '' ?>"
@@ -715,13 +870,13 @@ $rejectedCount = (int) (
                     Pending
                 </a>
 
-
                 <a
                     href="index.php?status=verified"
                     class="<?= $filter === 'verified' ? 'active' : '' ?>"
                 >
                     Verified
                 </a>
+
                 <a
                     href="index.php?status=rejected"
                     class="<?= $filter === 'rejected' ? 'active' : '' ?>"
@@ -747,12 +902,13 @@ $rejectedCount = (int) (
 
                     <?php
 
-                    $verificationStatus = strtolower(
-                        trim(
-                            $job["Verification_status"]
-                            ?? "pending"
-                        )
-                    );
+                    $verificationStatus =
+                        strtolower(
+                            trim(
+                                $job["Verification_status"]
+                                ?? "pending"
+                            )
+                        );
 
                     ?>
 
@@ -765,8 +921,7 @@ $rejectedCount = (int) (
                             <div>
 
                                 <h3>
-
-                                    <?= e(
+ <?= e(
                                         $job["first_name"]
                                         . " "
                                         . $job["last_name"]
@@ -777,7 +932,9 @@ $rejectedCount = (int) (
                                 <p>
 
                                     <?php if (
-                                        !empty($job["job_position"])
+                                        !empty(
+                                            $job["job_position"]
+                                        )
                                     ): ?>
 
                                         <?= e(
@@ -788,7 +945,9 @@ $rejectedCount = (int) (
 
 
                                     <?php if (
-                                        !empty($job["company_name"])
+                                        !empty(
+                                            $job["company_name"]
+                                        )
                                     ): ?>
 
                                         at
@@ -801,9 +960,13 @@ $rejectedCount = (int) (
 
 
                                     <?php if (
-                                        empty($job["job_position"])
+                                        empty(
+                                            $job["job_position"]
+                                        )
                                         &&
-                                        empty($job["company_name"])
+                                        empty(
+                                            $job["company_name"]
+                                        )
                                     ): ?>
 
                                         No employment details provided.
@@ -816,8 +979,10 @@ $rejectedCount = (int) (
 
 
                             <span
-                                class="verification-badge
-                                <?= e($verificationStatus) ?>"
+                                class="
+                                    verification-badge
+                                    <?= e($verificationStatus) ?>
+                                "
                             >
 
                                 <?php
@@ -853,8 +1018,8 @@ $rejectedCount = (int) (
 
                         <div class="employment-info-grid">
 
-
                             <div class="employment-info-item">
+
                                 <span>
                                     Employment Status
                                 </span>
@@ -877,10 +1042,8 @@ $rejectedCount = (int) (
 
                                         "self_employed"
                                             => "Self-employed",
-
-                                        "continuing_education"
+"continuing_education"
                                             => "Continuing Education"
-
                                     ];
 
                                     echo e(
@@ -992,6 +1155,7 @@ $rejectedCount = (int) (
                                 </span>
 
                                 <strong>
+
                                     <?php if (
                                         !empty(
                                             $job["End_date"]
@@ -1016,8 +1180,7 @@ $rejectedCount = (int) (
 
 
                         <!-- EXISTING ADMIN NOTE -->
-
-                        <?php if (
+ <?php if (
                             !empty(
                                 $job["Verification_notes"]
                             )
@@ -1047,7 +1210,6 @@ $rejectedCount = (int) (
                         ): ?>
 
                             <div class="verification-actions">
-
 
                                 <!-- VERIFY -->
 
@@ -1101,6 +1263,7 @@ $rejectedCount = (int) (
                                         name="action"
                                         value="reject"
                                     >
+
                                     <textarea
                                         name="verification_notes"
                                         class="reject-note"
@@ -1120,17 +1283,14 @@ $rejectedCount = (int) (
 
                         <?php endif; ?>
 
-
                     </div>
 
                 <?php endwhile; ?>
 
-
             <?php else: ?>
 
                 <div class="dashboard-panel empty-state">
-
-                    <div style="font-size:40px;">
+ <div style="font-size:40px;">
                         💼
                     </div>
 
@@ -1156,5 +1316,3 @@ $rejectedCount = (int) (
 </body>
 
 </html>
-
-               

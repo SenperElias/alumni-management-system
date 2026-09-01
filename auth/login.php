@@ -9,10 +9,13 @@ $error = "";
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     $email = trim($_POST["email"] ?? "");
+  
     $password = $_POST["password"] ?? "";
 
     if ($email === "" || $password === "") {
+
         $error = "Please enter your email and password.";
+
     } else {
 
         $stmt = $conn->prepare(
@@ -35,7 +38,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                 $error = "Your account is not active.";
 
-            } elseif (password_verify($password, $user["password_hash"])) {
+            } elseif (
+                password_verify(
+                    $password,
+                    $user["password_hash"]
+                )
+            ) {
 
                 session_regenerate_id(true);
 
@@ -51,6 +59,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 } elseif ($user["role"] === "alumni") {
 
                     header("Location: ../alumni/dashboard.php");
+                    exit;
+
+                } elseif ($user["role"] === "registrar") {
+
+                    header("Location: ../admin/registrar/dashboard.php");
                     exit;
 
                 } else {
@@ -71,22 +84,21 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $stmt->close();
     }
 }
-?>
 
+?>
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-
     <meta charset="UTF-8">
-
-    <meta name="viewport"
-          content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <title>Login | Alumni Management System</title>
 
-    <link rel="stylesheet"
-          href="../assets/css/style.css">
-
+    <link
+        rel="stylesheet"
+        href="../assets/css/style.css"
+    >
 </head>
 
 <body>
@@ -97,7 +109,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
         <h1>Welcome Back</h1>
 
-        <p>Login to your Alumni Management System account.</p>
+        <p>
+            Login to your Alumni Management System account.
+        </p>
 
         <?php if ($error !== ""): ?>
 
@@ -141,13 +155,22 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             </div>
 
-            <button type="submit" class="login-button">
+            <button
+                type="submit"
+                class="login-button"
+            >
                 Login
             </button>
 
         </form>
 
         <p class="login-back">
+
+            <a href="register.php">
+                Register as Alumni
+            </a>
+
+            <br><br>
 
             <a href="../public/index.php">
                 ← Back to Website

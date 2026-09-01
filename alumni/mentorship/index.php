@@ -1,4 +1,4 @@
-<?php
+ <?php
 
 session_start();
 
@@ -31,7 +31,8 @@ $user_id = (int) $_SESSION["user_id"];
 */
 
 $sql = "
-    SELECT alumni_id
+    SELECT
+        alumni_id
     FROM alumni
     WHERE user_id = ?
     LIMIT 1
@@ -73,19 +74,14 @@ $sql = "
         mp.biography,
         mp.availability,
         mp.status,
-
         a.first_name,
         a.last_name,
         a.alumni_id_number,
         a.profile_photo
-
     FROM mentor_profiles mp
-
     INNER JOIN alumni a
         ON mp.alumni_id = a.alumni_id
-
     WHERE LOWER(TRIM(mp.status)) = 'active'
-
     ORDER BY mp.created_at DESC
 ";
 
@@ -102,7 +98,6 @@ $mentors = $stmt->get_result();
 ?>
 
 <!DOCTYPE html>
-
 <html lang="en">
 
 <head>
@@ -133,16 +128,11 @@ $mentors = $stmt->get_result();
         */
 
         .mentor-grid {
-
             display: grid;
-
             grid-template-columns:
                 repeat(3, minmax(0, 1fr));
-
             gap: 20px;
-
         }
-
 
         /*
         |--------------------------------------------------------------------------
@@ -151,34 +141,22 @@ $mentors = $stmt->get_result();
         */
 
         .mentor-card {
-
             background: #ffffff;
-
             border: 1px solid #eeeeee;
-
             border-radius: 12px;
-
             padding: 22px;
-
             box-shadow:
                 0 5px 18px
                 rgba(0, 0, 0, 0.05);
-
             transition: 0.2s ease;
-
         }
 
-
         .mentor-card:hover {
-
             transform: translateY(-3px);
-
             box-shadow:
                 0 8px 25px
                 rgba(0, 0, 0, 0.08);
-
         }
-
 
         /*
         |--------------------------------------------------------------------------
@@ -187,47 +165,27 @@ $mentors = $stmt->get_result();
         */
 
         .mentor-photo {
-
             width: 70px;
-
             height: 70px;
-
             border-radius: 50%;
-
             object-fit: cover;
-
             margin-bottom: 15px;
-
             border: 3px solid #f1e7df;
-
         }
-
 
         .mentor-photo-placeholder {
-
-            width: 70px;
-
+ width: 70px;
             height: 70px;
-
             border-radius: 50%;
-
             background: #f1e7df;
-
             color: #7a4b2a;
-
             display: flex;
-
             align-items: center;
-
             justify-content: center;
-font-size: 25px;
-
+            font-size: 25px;
             font-weight: 700;
-
             margin-bottom: 15px;
-
         }
-
 
         /*
         |--------------------------------------------------------------------------
@@ -236,15 +194,10 @@ font-size: 25px;
         */
 
         .mentor-card h3 {
-
             margin-top: 0;
-
             margin-bottom: 6px;
-
             color: #4a2c1d;
-
         }
-
 
         /*
         |--------------------------------------------------------------------------
@@ -253,15 +206,10 @@ font-size: 25px;
         */
 
         .mentor-expertise {
-
             color: #7a4b2a;
-
             font-weight: 600;
-
             margin-bottom: 18px;
-
         }
-
 
         /*
         |--------------------------------------------------------------------------
@@ -270,28 +218,17 @@ font-size: 25px;
         */
 
         .mentor-card-label {
-
             font-size: 12px;
-
             color: #777777;
-
             display: block;
-
             margin-bottom: 5px;
-
         }
-
 
         .mentor-card-value {
-
             color: #444444;
-
             line-height: 1.5;
-
             margin-bottom: 15px;
-
         }
-
 
         /*
         |--------------------------------------------------------------------------
@@ -300,76 +237,45 @@ font-size: 25px;
         */
 
         .mentor-button {
-
             display: inline-block;
-
             padding: 10px 15px;
-
             border-radius: 7px;
-
             background: #7a4b2a;
-
             color: #ffffff;
-
             text-decoration: none;
-
             font-size: 14px;
-
             font-weight: 600;
-
             border: none;
-
             cursor: pointer;
-
         }
-
 
         .mentor-button:hover {
-
             background: #5f3921;
-
         }
-
 
         /*
         |--------------------------------------------------------------------------
-        | MY REQUESTS BUTTON
+        | MY REQUESTS / BECOME MENTOR BUTTON
         |--------------------------------------------------------------------------
         */
 
         .my-requests-button {
-
             display: inline-block;
-
             padding: 10px 16px;
-
             border-radius: 8px;
-
             background: #ffffff;
-
             color: #7a4b2a;
-
             border: 1px solid #7a4b2a;
-
             text-decoration: none;
-
             font-size: 14px;
-
             font-weight: 600;
-
             white-space: nowrap;
-
         }
-
 
         .my-requests-button:hover {
-
             background: #7a4b2a;
-
             color: #ffffff;
-
         }
-
 
         /*
         |--------------------------------------------------------------------------
@@ -378,15 +284,10 @@ font-size: 25px;
         */
 
         .no-mentors {
-
             text-align: center;
-
             padding: 50px 20px;
-
             color: #777777;
-
         }
-
 
         /*
         |--------------------------------------------------------------------------
@@ -397,20 +298,15 @@ font-size: 25px;
         @media (max-width: 1000px) {
 
             .mentor-grid {
-
                 grid-template-columns: 1fr 1fr;
-
             }
 
         }
 
-
         @media (max-width: 650px) {
 
             .mentor-grid {
-
                 grid-template-columns: 1fr;
-
             }
 
         }
@@ -419,12 +315,9 @@ font-size: 25px;
 
 </head>
 
-
 <body class="admin-body">
 
-
 <div class="admin-layout">
-
 
     <!-- =====================================================
          SIDEBAR
@@ -437,16 +330,15 @@ font-size: 25px;
     require_once __DIR__ . "/../includes/sidebar.php";
 
     ?>
-
-
-    <!-- =====================================================
+ <!-- =====================================================
          MAIN CONTENT
     ====================================================== -->
 
     <main class="admin-main">
-<!-- =====================================================
+
+        <!-- =================================================
              TOP BAR
-        ====================================================== -->
+        ================================================== -->
 
         <header class="admin-topbar">
 
@@ -457,27 +349,25 @@ font-size: 25px;
                 </h1>
 
                 <p>
-                    Connect with experienced alumni and learn from their expertise.
+                    Connect with experienced alumni and learn
+                    from their expertise.
                 </p>
 
             </div>
 
         </header>
 
-
-        <!-- =====================================================
+        <!-- =================================================
              CONTENT
-        ====================================================== -->
+        ================================================== -->
 
         <section class="dashboard-content">
 
-
             <div class="dashboard-panel">
 
-
-                <!-- =====================================================
+                <!-- =================================================
                      PANEL HEADER
-                ====================================================== -->
+                ================================================== -->
 
                 <div
                     class="panel-header"
@@ -497,39 +387,60 @@ font-size: 25px;
                         </h2>
 
                         <p>
-                            Choose a mentor whose experience matches your goals.
+                            Choose a mentor whose experience
+                            matches your goals.
                         </p>
 
                     </div>
 
-
                     <!-- =================================================
-                         MY REQUESTS BUTTON
+                         ACTION BUTTONS
                     ================================================== -->
 
-                    <a
-                        href="my-requests.php"
-                        class="my-requests-button"
+                    <div
+                        style="
+                            display:flex;
+                            gap:10px;
+                            flex-wrap:wrap;
+                        "
                     >
-                        My Requests
-                    </a>
-                    
-                     <a
-                        href="received-requests.php"
-                        class="my-requests-button"
-                    >
-                        Received Requests
-                    </a>
+
+                        <!-- MY REQUESTS -->
+
+                        <a
+                            href="my-requests.php"
+                            class="my-requests-button"
+                        >
+                            My Requests
+                        </a>
+
+                        <!-- RECEIVED REQUESTS -->
+
+                        <a
+                            href="received-requests.php"
+                            class="my-requests-button"
+                        >
+                            Received Requests
+                        </a>
+
+                        <!-- BECOME A MENTOR -->
+
+                        <a
+                            href="become.php"
+                            class="my-requests-button"
+                        >
+                            🎓 Become a Mentor
+                        </a>
+
+                    </div>
 
                 </div>
 
-
-                <!-- =====================================================
+                <!-- =================================================
                      CHECK IF MENTORS EXIST
-                ====================================================== -->
+                ================================================== -->
 
                 <?php if ($mentors->num_rows === 0): ?>
-
 
                     <div class="no-mentors">
 
@@ -538,14 +449,13 @@ font-size: 25px;
                         </h3>
 
                         <p>
-                            There are currently no alumni available for mentorship.
+                            There are currently no alumni
+                            available for mentorship.
                         </p>
 
                     </div>
 
-
                 <?php else: ?>
-
 
                     <!-- =================================================
                          MENTOR GRID
@@ -553,14 +463,10 @@ font-size: 25px;
 
                     <div class="mentor-grid">
 
-
                         <?php while ($mentor = $mentors->fetch_assoc()): ?>
 
-
                             <div class="mentor-card">
-
-
-                                <!-- =====================================
+ <!-- =====================================
                                      PROFILE PHOTO
                                 ====================================== -->
 
@@ -580,7 +486,7 @@ font-size: 25px;
 
                                         <?= e(
                                             strtoupper(
-substr(
+                                                substr(
                                                     $mentor["first_name"],
                                                     0,
                                                     1
@@ -591,7 +497,6 @@ substr(
                                     </div>
 
                                 <?php endif; ?>
-
 
                                 <!-- =====================================
                                      NAME
@@ -609,7 +514,6 @@ substr(
 
                                 </h3>
 
-
                                 <!-- =====================================
                                      EXPERTISE
                                 ====================================== -->
@@ -621,7 +525,6 @@ substr(
                                     ) ?>
 
                                 </div>
-
 
                                 <!-- =====================================
                                      EXPERIENCE
@@ -643,7 +546,6 @@ substr(
 
                                 </div>
 
-
                                 <!-- =====================================
                                      SKILLS
                                 ====================================== -->
@@ -662,7 +564,6 @@ substr(
 
                                 </div>
 
-
                                 <!-- =====================================
                                      AVAILABILITY
                                 ====================================== -->
@@ -674,13 +575,11 @@ substr(
                                 </span>
 
                                 <div class="mentor-card-value">
-
-                                    <?= e(
+ <?= e(
                                         $mentor["availability"]
                                     ) ?>
 
                                 </div>
-
 
                                 <!-- =====================================
                                      REQUEST MENTORSHIP BUTTON
@@ -688,36 +587,27 @@ substr(
 
                                 <a
                                     href="request.php?mentor_id=<?= (int)
-                                     $mentor["mentor_profile_id"] ?>"
-                                    class="mentor-button">
-                                
-
+                                        $mentor["mentor_profile_id"] ?>"
+                                    class="mentor-button"
+                                >
                                     Request Mentorship
-
                                 </a>
-
 
                             </div>
 
-
                         <?php endwhile; ?>
-
 
                     </div>
 
-
                 <?php endif; ?>
-
 
             </div>
 
-
         </section>
 
-
     </main>
-</div>
 
+</div>
 
 </body>
 

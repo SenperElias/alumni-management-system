@@ -95,7 +95,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
         $created_by = (int) $_SESSION["user_id"];
 
-        $status = "Pending";
+        $status = "pending";
 
 
         $sql = "

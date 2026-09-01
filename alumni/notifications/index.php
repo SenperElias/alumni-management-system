@@ -1,4 +1,4 @@
-<?php
+ <?php
 
 session_start();
 
@@ -36,6 +36,8 @@ $stmt = $conn->prepare("
         title,
         message,
         type,
+        opportunity_id,
+        event_id,
         is_read,
         created_at
     FROM notifications
@@ -83,10 +85,13 @@ $stmt->close();
          SIDEBAR
     ========================================================== -->
 
-<?php
-$currentPage = "notifications";
-require_once __DIR__ . "/../includes/sidebar.php";
-?>
+    <?php
+
+    $currentPage = "notifications";
+
+    require_once __DIR__ . "/../includes/sidebar.php";
+
+    ?>
 
     <!-- =========================================================
          MAIN CONTENT
@@ -126,7 +131,8 @@ require_once __DIR__ . "/../includes/sidebar.php";
                         <p>
                             Recent messages and updates.
                         </p>
-                       </div>
+
+                    </div>
 
                 </div>
 
@@ -146,9 +152,10 @@ require_once __DIR__ . "/../includes/sidebar.php";
                                     border-radius: 12px;
                                     padding: 20px;
                                     margin-bottom: 15px;
-                                    background: <?= $notification["is_read"]
-                                        ? "#ffffff"
-                                        : "#f8f5f2" ?>;
+                                    background:
+                                        <?= (int) $notification["is_read"] === 1
+                                            ? "#ffffff"
+                                            : "#f8f5f2" ?>;
                                 "
                             >
 
@@ -161,7 +168,10 @@ require_once __DIR__ . "/../includes/sidebar.php";
                                     "
                                 >
 
-                                    <div>
+                                    <div style="flex: 1;">
+ <!-- =================================================
+                                             NOTIFICATION TITLE
+                                        ================================================== -->
 
                                         <h3
                                             style="
@@ -170,11 +180,48 @@ require_once __DIR__ . "/../includes/sidebar.php";
                                             "
                                         >
 
-                                            <?= e(
-                                                $notification["title"]
-                                            ) ?>
+                                            <?php if (!empty($notification["event_id"])): ?>
+
+                                                <!-- EVENT NOTIFICATION -->
+
+                                                <a
+                                                    href="../events/view-event.php?id=<?= (int) $notification["event_id"] ?>"
+                                                    style="
+                                                        color: #4a2c1d;
+                                                        text-decoration: none;
+                                                    "
+                                                >
+                                                    <?= e($notification["title"]) ?>
+                                                </a>
+
+                                            <?php elseif (!empty($notification["opportunity_id"])): ?>
+
+                                                <!-- OPPORTUNITY NOTIFICATION -->
+
+                                                <a
+                                                    href="../opportunity.php?id=<?= (int) $notification["opportunity_id"] ?>"
+                                                    style="
+                                                        color: #4a2c1d;
+                                                        text-decoration: none;
+                                                    "
+                                                >
+                                                    <?= e($notification["title"]) ?>
+                                                </a>
+
+                                            <?php else: ?>
+
+                                                <!-- GENERAL NOTIFICATION -->
+
+                                                <?= e($notification["title"]) ?>
+
+                                            <?php endif; ?>
 
                                         </h3>
+
+
+                                        <!-- =================================================
+                                             NOTIFICATION MESSAGE
+                                        ================================================== -->
 
                                         <p
                                             style="
@@ -184,16 +231,49 @@ require_once __DIR__ . "/../includes/sidebar.php";
                                             "
                                         >
 
-                                            <?= nl2br(
-                                                e(
-                                                    $notification["message"]
-                                                )
-                                            ) ?>
+                                            <?php if (!empty($notification["event_id"])): ?>
+
+                                                <!-- EVENT MESSAGE -->
+
+                                                <a
+                                                    href="../events/view-event.php?id=<?= (int) $notification["event_id"] ?>"
+                                                    style="
+                                                        color: #666666;
+                                                        text-decoration: none;
+                                                    "
+                                                >
+                                                    <?= nl2br(e($notification["message"])) ?>
+                                                </a>
+
+                                            <?php elseif (!empty($notification["opportunity_id"])): ?>
+ <!-- OPPORTUNITY MESSAGE -->
+
+                                                <a
+                                                    href="../opportunity.php?id=<?= (int) $notification["opportunity_id"] ?>"
+                                                    style="
+                                                        color: #666666;
+                                                        text-decoration: none;
+                                                    "
+                                                >
+                                                    <?= nl2br(e($notification["message"])) ?>
+                                                </a>
+
+                                            <?php else: ?>
+
+                                                <!-- GENERAL MESSAGE -->
+
+                                                <?= nl2br(e($notification["message"])) ?>
+
+                                            <?php endif; ?>
 
                                         </p>
 
                                     </div>
 
+
+                                    <!-- =================================================
+                                         NOTIFICATION TYPE
+                                    ================================================== -->
 
                                     <span
                                         style="
@@ -206,26 +286,29 @@ require_once __DIR__ . "/../includes/sidebar.php";
                                             white-space: nowrap;
                                         "
                                     >
-
-                                        <?= e(
-                                            $notification["type"]
-                                        ) ?>
-
+                                        <?= e($notification["type"]) ?>
                                     </span>
 
                                 </div>
 
 
+                                <!-- =========================================================
+                                     DATE + READ STATUS
+                                ========================================================== -->
+
                                 <div
                                     style="
                                         margin-top: 15px;
-                                        padding-top: 12px;
+                                        padding-top: 10px;
                                         border-top: 1px solid #eeeeee;
                                         color: #999999;
                                         font-size: 12px;
+                                        background: transparent;
+                                        border-radius: 0;
                                     "
                                 >
-                              <?= e(
+
+                                    <?= e(
                                         date(
                                             "M d, Y • h:i A",
                                             strtotime(
@@ -234,21 +317,26 @@ require_once __DIR__ . "/../includes/sidebar.php";
                                         )
                                     ) ?>
 
+
                                     <?php if (
                                         (int) $notification["is_read"] === 0
                                     ): ?>
 
-<a
-    href="read.php?id=<?= (int) $notification["notification_id"] ?>"
-    style="
-        margin-left: 10px;
-        color: #7a4b2a;
-        font-weight: 700;
-        text-decoration: none;
-    "
->
-    • New — Mark as Read
-</a>
+                                        <a
+                                            href="read.php?id=<?= (int) $notification["notification_id"] ?>"
+                                            style="
+                                                display: inline-block;
+                                                margin-left: 12px;
+ color: #7a4b2a;
+                                                font-weight: 700;
+                                                text-decoration: none;
+                                                background: #f3ebe5;
+                                                padding: 5px 9px;
+                                                border-radius: 5px;
+                                            "
+                                        >
+                                            Mark as Read
+                                        </a>
 
                                     <?php endif; ?>
 
@@ -261,6 +349,10 @@ require_once __DIR__ . "/../includes/sidebar.php";
                     </div>
 
                 <?php else: ?>
+
+                    <!-- =========================================================
+                         EMPTY STATE
+                    ========================================================== -->
 
                     <div class="empty-dashboard">
 
@@ -290,4 +382,4 @@ require_once __DIR__ . "/../includes/sidebar.php";
 
 </body>
 
-</html>   
+</html>

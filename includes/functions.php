@@ -71,6 +71,19 @@ function csrf_token()
 
 
 /**
+ * Create a hidden CSRF form field.
+ */
+function csrf_field()
+{
+    $token = csrf_token();
+
+    return '<input type="hidden" name="csrf_token" value="' .
+           e($token) .
+           '">';
+}
+
+
+/**
  * Verify the submitted CSRF token.
  */
 function verify_csrf_token()
@@ -80,23 +93,20 @@ function verify_csrf_token()
     }
 
     $submitted_token = $_POST['csrf_token'] ?? '';
+    $session_token = $_SESSION['csrf_token'] ?? '';
 
     if (
         empty($submitted_token) ||
-        empty($_SESSION['csrf_token']) ||
+        empty($session_token) ||
         !hash_equals(
-            $_SESSION['csrf_token'],
+            $session_token,
             $submitted_token
         )
     ) {
-        die("Invalid security token. Please go back and try again.");
+        die(
+            "Invalid security token. Please go back and try again."
+        );
     }
 
     return true;
-}
-function csrf_field()
-{
-    return '<input type="hidden" name="csrf_token" value="' .
-           e($_SESSION['csrf_token'] ?? '') .
-           '">';
 }

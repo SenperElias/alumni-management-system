@@ -77,7 +77,7 @@ if (!$stmt) {
 
 $stmt->bind_param(
     "i",
-    $user_id
+    $alumni_id
 );
 
 
