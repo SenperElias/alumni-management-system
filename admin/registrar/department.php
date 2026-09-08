@@ -1,10 +1,16 @@
- <?php
+<?php
 
 session_start();
 
 require_once "../../config/database.php";
 require_once "../../config/config.php";
 require_once "../../includes/functions.php";
+
+/*
+|--------------------------------------------------------------------------
+| REGISTRAR ACCESS
+|--------------------------------------------------------------------------
+*/
 
 if (!isset($_SESSION["user_id"])) {
     header("Location: ../../auth/login.php");
@@ -16,10 +22,12 @@ if ($_SESSION["role"] !== "registrar") {
     exit;
 }
 
+$registrarId = (int) $_SESSION["user_id"];
+
 
 /*
 |--------------------------------------------------------------------------
-| Get Department ID
+| GET DEPARTMENT ID
 |--------------------------------------------------------------------------
 */
 
@@ -32,27 +40,52 @@ if ($department_id <= 0) {
 
 /*
 |--------------------------------------------------------------------------
-| Get Department
+| GET DEPARTMENT
 |--------------------------------------------------------------------------
 */
 
-$stmt = $conn->prepare(
-    "SELECT
+$stmt = $conn->prepare("
+    SELECT
         department_id,
         department_name,
         description
-     FROM departments
-     WHERE department_id = ?
-     LIMIT 1"
-);
+    FROM departments
+    WHERE department_id = ?
+    LIMIT 1
+");
 
 if (!$stmt) {
-    die("Database error: " . $conn->error);
+
+    error_log(
+        "Database prepare error in registrar/department.php: " .
+        $conn->error
+    );
+
+    die(
+        "Unable to load department information. " .
+        "Please try again later."
+    );
 }
 
-$stmt->bind_param("i", $department_id);
+$stmt->bind_param(
+    "i",
+    $department_id
+);
 
-$stmt->execute();
+if (!$stmt->execute()) {
+
+    error_log(
+        "Database execute error in registrar/department.php: " .
+        $stmt->error
+    );
+
+    $stmt->close();
+
+    die(
+        "Unable to load department information. " .
+        "Please try again later."
+    );
+}
 
 $result = $stmt->get_result();
 
@@ -61,6 +94,12 @@ $department = $result->fetch_assoc();
 $stmt->close();
 
 
+/*
+|--------------------------------------------------------------------------
+| DEPARTMENT NOT FOUND
+|--------------------------------------------------------------------------
+*/
+
 if (!$department) {
     die("Department not found.");
 }
@@ -68,14 +107,14 @@ if (!$department) {
 
 /*
 |--------------------------------------------------------------------------
-| Get Registrations For Department
+| GET REGISTRATIONS FOR DEPARTMENT
 |--------------------------------------------------------------------------
 */
 
-$stmt = $conn->prepare(
-    "SELECT
+$stmt = $conn->prepare("
+    SELECT
         registration_id,
-        alumni_id_number,
+        college_id_number,
         first_name,
         last_name,
         email,
@@ -83,18 +122,45 @@ $stmt = $conn->prepare(
         status,
         created_at,
         verified_at
-     FROM alumni_registrations
-     WHERE department_id = ?
-     ORDER BY created_at DESC"
-);
+    FROM alumni_registrations
+    WHERE department_id = ?
+    ORDER BY created_at DESC
+");
 
 if (!$stmt) {
-    die("Database error: " . $conn->error);
+
+    error_log(
+        "Database prepare error in registrar/department.php " .
+        "(registrations): " .
+        $conn->error
+    );
+
+    die(
+        "Unable to load department registrations. " .
+        "Please try again later."
+    );
 }
 
-$stmt->bind_param("i", $department_id);
+$stmt->bind_param(
+    "i",
+    $department_id
+);
 
-$stmt->execute();
+if (!$stmt->execute()) {
+
+    error_log(
+        "Database execute error in registrar/department.php " .
+        "(registrations): " .
+        $stmt->error
+    );
+
+    $stmt->close();
+
+    die(
+        "Unable to load department registrations. " .
+        "Please try again later."
+    );
+}
 
 $registrationResult = $stmt->get_result();
 
@@ -102,6 +168,7 @@ $registrationResult = $stmt->get_result();
 
 
 <!DOCTYPE html>
+
 <html lang="en">
 
 <head>
@@ -114,9 +181,13 @@ $registrationResult = $stmt->get_result();
     >
 
     <title>
+
         <?= e($department["department_name"]) ?>
+
         Registrations |
+
         <?= e(SITE_NAME) ?>
+
     </title>
 
     <link
@@ -137,96 +208,28 @@ $registrationResult = $stmt->get_result();
          SIDEBAR
     ====================================================== -->
 
-    <aside class="admin-sidebar">
+    <?php
 
+    $activePage = "dashboard";
 
-        <div class="admin-brand">
+    require_once __DIR__ . "/includes/sidebar.php";
 
-
-            <div class="brand-logo">
-                TM
-            </div>
-
-
-            <div>
-
-                <strong>
-                    Alumni System
-                </strong>
-
-                <small>
-                    Registrar Panel
-                </small>
-
-            </div>
-
-
-        </div>
-
-
-
-        <nav class="admin-nav">
-
-
-            <a href="dashboard.php">
-                Dashboard
-            </a>
-
-
-            <div class="nav-section">
-                REGISTRATION
-            </div>
-
-
-            <a href="pending.php">
-                Pending Registrations
-            </a>
-
-
-            <a href="approved.php">
-                Approved Registrations
-            </a>
-
-
-            <a href="rejected.php">
-                Rejected Registrations
-            </a>
-
-
-            <div class="nav-section">
-                SYSTEM
-            </div>
-
-
-            <a
-                href="../../auth/logout.php"
-                class="logout-link"
-            >
-                Logout
-            </a>
-
-
-        </nav>
-
-
-    </aside>
-
+    ?>
 
 
     <!-- =====================================================
          MAIN CONTENT
     ====================================================== -->
+ <main class="admin-main">
 
-    <main class="admin-main">
 
-
-        <!-- TOPBAR -->
+        <!-- =================================================
+             TOPBAR
+        ================================================== -->
 
         <header class="admin-topbar">
 
-
             <div>
-
 
                 <h1>
 
@@ -236,53 +239,51 @@ $registrationResult = $stmt->get_result();
 
                 </h1>
 
-
                 <p>
- Alumni registration applications
+
+                    Alumni registration applications
                     for this department.
 
                 </p>
 
-
             </div>
-
 
 
             <div class="admin-user">
 
-
                 <div class="admin-avatar">
+
                     R
+
                 </div>
 
 
                 <div>
 
-
                     <strong>
+
                         Registrar
+
                     </strong>
 
-
                     <small>
-                        Registration Officer
-                    </small>
 
+                        Registration Officer
+
+                    </small>
 
                 </div>
 
-
             </div>
-
 
         </header>
 
 
-
-        <!-- CONTENT -->
+        <!-- =================================================
+             CONTENT
+        ================================================== -->
 
         <section class="dashboard-content">
-
 
 
             <!-- =================================================
@@ -294,9 +295,7 @@ $registrationResult = $stmt->get_result();
 
                 <div class="panel-header">
 
-
                     <div>
-
 
                         <h2>
 
@@ -308,7 +307,9 @@ $registrationResult = $stmt->get_result();
 
 
                         <?php if (
-                            !empty($department["description"])
+                            !empty(
+                                $department["description"]
+                            )
                         ): ?>
 
                             <p>
@@ -322,21 +323,20 @@ $registrationResult = $stmt->get_result();
                         <?php else: ?>
 
                             <p>
+
                                 Registration applications
                                 for this department.
+
                             </p>
 
                         <?php endif; ?>
 
-
                     </div>
-
 
                 </div>
 
 
             </div>
-
 
 
             <!-- =================================================
@@ -348,28 +348,26 @@ $registrationResult = $stmt->get_result();
 
                 <div class="panel-header">
 
-
                     <div>
 
-
                         <h2>
+
                             Department Registrations
+
                         </h2>
 
 
                         <p>
 
-                            All alumni registration applications
-                            submitted under this department.
+                            All alumni registration
+                            applications submitted under
+                            this department.
 
                         </p>
 
-
                     </div>
 
-
                 </div>
-
 
 
                 <?php if (
@@ -379,7 +377,8 @@ $registrationResult = $stmt->get_result();
 
                     <div class="form-alert">
 
-                        No registrations found for this department.
+                        No registrations found for this
+                        department.
 
                     </div>
 
@@ -389,152 +388,142 @@ $registrationResult = $stmt->get_result();
 
                     <div style="overflow-x: auto;">
 
-
                         <table class="data-table">
 
 
                             <thead>
 
-
                                 <tr>
-
 
                                     <th>
                                         Name
                                     </th>
 
-
                                     <th>
                                         Alumni ID
                                     </th>
-
 
                                     <th>
                                         Email
                                     </th>
 
-
                                     <th>
                                         Graduation Year
                                     </th>
-
-
-                                    <th>
+ <th>
                                         Status
                                     </th>
-
 
                                     <th>
                                         Registered
                                     </th>
 
-
                                     <th>
                                         Action
                                     </th>
+
+                                </tr>
+
+                            </thead>
+
+
+                            <tbody>
+
+
+                            <?php while (
+                                $row =
+                                $registrationResult->fetch_assoc()
+                            ): ?>
+
+
+                                <tr>
+
+
+                                    <td>
+
+                                        <?= e(
+                                            $row["first_name"]
+                                            . " "
+                                            . $row["last_name"]
+                                        ) ?>
+
+                                    </td>
+
+
+                                    <td>
+
+                                        <?= e(
+                                            $row["college_id_number"]
+                                        ) ?>
+
+                                    </td>
+
+
+                                    <td>
+
+                                        <?= e(
+                                            $row["email"]
+                                        ) ?>
+
+                                    </td>
+
+
+                                    <td>
+
+                                        <?= e(
+                                            $row["graduation_year"]
+                                        ) ?>
+
+                                    </td>
+
+
+                                    <td>
+
+                                        <strong>
+
+                                            <?= e(
+                                                ucfirst(
+                                                    $row["status"]
+                                                )
+                                            ) ?>
+
+                                        </strong>
+
+                                    </td>
+
+
+                                    <td>
+
+                                        <?= e(
+                                            $row["created_at"]
+                                        ) ?>
+
+                                    </td>
+
+
+                                    <td>
+
+                                        <a
+                                            href="view.php?id=<?= (int) $row["registration_id"] ?>"
+                                        >
+
+                                            View
+
+                                        </a>
+
+                                    </td>
 
 
                                 </tr>
 
 
-                            </thead>
-
-
-
-                            <tbody>
- <?php while (
-                                    $row =
-                                    $registrationResult->fetch_assoc()
-                                ): ?>
-
-
-                                    <tr>
-
-
-                                        <td>
-
-                                            <?= e(
-                                                $row["first_name"]
-                                                . " "
-                                                . $row["last_name"]
-                                            ) ?>
-
-                                        </td>
-
-
-                                        <td>
-
-                                            <?= e(
-                                                $row["alumni_id_number"]
-                                            ) ?>
-
-                                        </td>
-
-
-                                        <td>
-
-                                            <?= e(
-                                                $row["email"]
-                                            ) ?>
-
-                                        </td>
-
-
-                                        <td>
-
-                                            <?= e(
-                                                $row["graduation_year"]
-                                            ) ?>
-
-                                        </td>
-
-
-                                        <td>
-
-                                            <strong>
-
-                                                <?= e(
-                                                    ucfirst(
-                                                        $row["status"]
-                                                    )
-                                                ) ?>
-
-                                            </strong>
-
-                                        </td>
-
-
-                                        <td>
-
-                                            <?= e(
-                                                $row["created_at"]
-                                            ) ?>
-
-                                        </td>
-
-
-                                        <td>
-
-                                            <a
-                                                href="view.php?id=<?= (int) $row["registration_id"] ?>"
-                                            >
-                                                View
-                                            </a>
-
-                                        </td>
-
-
-                                    </tr>
-
-
-                                <?php endwhile; ?>
+                            <?php endwhile; ?>
 
 
                             </tbody>
 
 
                         </table>
-
 
                     </div>
 
@@ -543,7 +532,6 @@ $registrationResult = $stmt->get_result();
 
 
             </div>
-
 
 
             <!-- =================================================
@@ -577,7 +565,9 @@ $registrationResult = $stmt->get_result();
 
 </body>
 
+
 </html>
+
 
 <?php
 

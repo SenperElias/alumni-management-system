@@ -31,7 +31,7 @@ CREATE TABLE `alumni` (
   `alumni_id` int(10) UNSIGNED NOT NULL,
   `user_id` int(10) UNSIGNED NOT NULL,
   `department_id` int(10) UNSIGNED NOT NULL,
-  `alumni_id_number` varchar(50) NOT NULL,
+  `college_id_number` varchar(50) NOT NULL,
   `first_name` varchar(100) NOT NULL,
   `last_name` varchar(100) NOT NULL,
   `gender` enum('male','female','other') DEFAULT NULL,
@@ -389,7 +389,7 @@ CREATE TABLE `users` (
 ALTER TABLE `alumni`
   ADD PRIMARY KEY (`alumni_id`),
   ADD UNIQUE KEY `user_id` (`user_id`),
-  ADD UNIQUE KEY `alumni_id_number` (`alumni_id_number`),
+  ADD UNIQUE KEY `college_id_number` (`college_id_number`),
   ADD KEY `fk_alumni_department` (`department_id`);
 
 --

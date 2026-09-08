@@ -73,7 +73,7 @@ $stmt = $conn->prepare("
         a.alumni_id,
         a.first_name,
         a.last_name,
-        a.alumni_id_number,
+        a.college_id_number,
         a.phone,
 
         u.email
@@ -577,7 +577,7 @@ $maxCapacity = (int) ($event["max_capacity"] ?? 0);
                                         <td>
 
                                             <?= e(
-                                                $registration["alumni_id_number"]
+                                                $registration["college_id_number"]
                                                 ?: "—"
                                             ) ?>
 

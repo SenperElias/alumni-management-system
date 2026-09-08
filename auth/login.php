@@ -3,13 +3,14 @@
 session_start();
 
 require_once "../config/database.php";
+require_once "../config/config.php";
+require_once "../includes/functions.php";
 
 $error = "";
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     $email = trim($_POST["email"] ?? "");
-  
     $password = $_POST["password"] ?? "";
 
     if ($email === "" || $password === "") {
@@ -19,56 +20,119 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     } else {
 
         $stmt = $conn->prepare(
-            "SELECT user_id, email, password_hash, role, account_status
+            "SELECT
+                user_id,
+                email,
+                password_hash,
+                role,
+                account_status,
+                must_change_password
              FROM users
              WHERE email = ?
              LIMIT 1"
         );
 
-        $stmt->bind_param("s", $email);
-        $stmt->execute();
+        if (!$stmt) {
 
-        $result = $stmt->get_result();
+            $error = "Unable to process login. Please try again.";
 
-        if ($result->num_rows === 1) {
+        } else {
 
-            $user = $result->fetch_assoc();
+            $stmt->bind_param("s", $email);
+            $stmt->execute();
 
-            if ($user["account_status"] !== "active") {
+            $result = $stmt->get_result();
 
-                $error = "Your account is not active.";
+            if ($result->num_rows === 1) {
 
-            } elseif (
-                password_verify(
-                    $password,
-                    $user["password_hash"]
-                )
-            ) {
+                $user = $result->fetch_assoc();
 
-                session_regenerate_id(true);
+                if ($user["account_status"] !== "active") {
 
-                $_SESSION["user_id"] = $user["user_id"];
-                $_SESSION["email"] = $user["email"];
-                $_SESSION["role"] = $user["role"];
+                    $error = "Your account is not active.";
 
-                if ($user["role"] === "admin") {
+                } elseif (
+    $user["account_status"] !== "active"
+) {
 
-                    header("Location: ../admin/dashboard.php");
-                    exit;
+    $error = "Your account has been deactivated. Please contact the administrator.";
 
-                } elseif ($user["role"] === "alumni") {
+} elseif (
+    password_verify(
+        $password,
+        $user["password_hash"]
+    )
+) {
 
-                    header("Location: ../alumni/dashboard.php");
-                    exit;
+                    session_regenerate_id(true);
 
-                } elseif ($user["role"] === "registrar") {
+                    $_SESSION["user_id"] = $user["user_id"];
+                    $_SESSION["email"] = $user["email"];
+                    $_SESSION["role"] = $user["role"];
+                    $_SESSION["must_change_password"] =
+                        (int) $user["must_change_password"];
 
-                    header("Location: ../admin/registrar/dashboard.php");
-                    exit;
+                    /*
+                     * Temporary password handling.
+                     *
+                     * Only alumni accounts can be forced
+                     * to change a temporary password.
+                     */
+                    if ((int) $user["must_change_password"] === 1) {
+
+    $_SESSION["must_change_password"] = 1;
+
+    header("Location: change_password.php?required=1");
+    exit;
+}
+
+                    /*
+                     * Normal role-based redirects.
+                     */
+                    if ($user["role"] === "admin") {
+
+                        // Alumni President
+                        header(
+                            "Location: ../admin/dashboard.php"
+                        );
+                        exit;
+
+                    } elseif ($user["role"] === "alumni") {
+
+                        header(
+                            "Location: ../alumni/dashboard.php"
+                        );
+                        exit;
+
+                    } elseif ($user["role"] === "registrar") {
+
+                        header(
+                            "Location: ../admin/registrar/dashboard.php"
+                        );
+                        exit;
+
+                    } elseif ($user["role"] === "student_rep") {
+
+                        header(
+                            "Location: ../admin/student_rep/dashboard.php"
+                        );
+                        exit;
+
+                    } elseif ($user["role"] === "system_admin") {
+
+                        header(
+                            "Location: ../admin/system_admin/dashboard.php"
+                        );
+                        exit;
+
+                    } else {
+
+                        $error = "Invalid account role.";
+                    }
 
                 } else {
 
-                    $error = "Invalid account role.";
+                    $error = "Invalid email or password.";
                 }
 
             } else {
@@ -76,12 +140,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 $error = "Invalid email or password.";
             }
 
-        } else {
-
-            $error = "Invalid email or password.";
+            $stmt->close();
         }
-
-        $stmt->close();
     }
 }
 
@@ -90,15 +150,23 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>Login | Alumni Management System</title>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>
+        Login | Alumni Management System
+    </title>
 
     <link
         rel="stylesheet"
         href="../assets/css/style.css"
     >
+
 </head>
 
 <body>
@@ -107,21 +175,27 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     <div class="login-card">
 
-        <h1>Welcome Back</h1>
+        <h1>
+            Welcome Back
+        </h1>
 
         <p>
             Login to your Alumni Management System account.
         </p>
 
-        <?php if ($error !== ""): ?>
 
-            <div class="error-message">
-                <?= htmlspecialchars($error) ?>
+        <?php if ($error !== ""): ?>
+ <div class="error-message">
+                <?= e($error) ?>
             </div>
 
         <?php endif; ?>
 
-        <form method="POST" action="">
+
+        <form
+            method="POST"
+            action=""
+        >
 
             <div class="form-group">
 
@@ -139,6 +213,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             </div>
 
+
             <div class="form-group">
 
                 <label for="password">
@@ -155,6 +230,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             </div>
 
+
             <button
                 type="submit"
                 class="login-button"
@@ -163,6 +239,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             </button>
 
         </form>
+
 
         <p class="login-back">
 
@@ -183,4 +260,5 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 </div>
 
 </body>
+
 </html>

@@ -1,8 +1,10 @@
 <?php
 
-/* =========================================================
-   GENERAL FUNCTIONS
-========================================================= */
+/*
+|--------------------------------------------------------------------------
+| Redirect
+|--------------------------------------------------------------------------
+*/
 
 function redirect($url)
 {
@@ -11,102 +13,167 @@ function redirect($url)
 }
 
 
-/* =========================================================
-   AUTHENTICATION HELPERS
-========================================================= */
+/*
+|--------------------------------------------------------------------------
+| Authentication Helpers
+|--------------------------------------------------------------------------
+*/
 
 function isLoggedIn()
 {
-    return isset($_SESSION['user_id']);
+    return isset($_SESSION["user_id"]);
 }
 
-function isAdmin()
+function isAlumniPresident()
 {
-    return isset($_SESSION['role']) &&
-           $_SESSION['role'] === 'admin';
+    return isset($_SESSION["role"])
+        && $_SESSION["role"] === "admin";
+}
+
+function isSystemAdministrator(){
+    return isset($_SESSION["role"])
+        && $_SESSION["role"] === "system_admin";
 }
 
 function isAlumni()
 {
-    return isset($_SESSION['role']) &&
-           $_SESSION['role'] === 'alumni';
+    return isset($_SESSION["role"])
+        && $_SESSION["role"] === "alumni";
 }
 
 
-/* =========================================================
-   OUTPUT ESCAPING
-========================================================= */
+/*
+|--------------------------------------------------------------------------
+| Temporary Password Helpers
+|--------------------------------------------------------------------------
+*/
+
+function mustChangePassword()
+{
+    return 
+ isset($_SESSION["must_change_password"])
+        && (int) $_SESSION["must_change_password"] === 1;
+}
+
+function requirePasswordChange()
+{
+    if (mustChangePassword()) {
+        header("Location: ../auth/change_password.php?required=1");
+        exit;
+    }
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| Security / Output Escaping
+|--------------------------------------------------------------------------
+*/
 
 function e($value)
 {
     return htmlspecialchars(
-        $value ?? '',
+        (string) $value,
         ENT_QUOTES,
-        'UTF-8'
+        "UTF-8"
     );
 }
 
 
-/* =========================================================
-   CSRF PROTECTION
-========================================================= */
+/*
+|--------------------------------------------------------------------------
+| CSRF Protection
+|--------------------------------------------------------------------------
+*/
 
-/**
- * Generate and return the CSRF token.
- */
 function csrf_token()
 {
-    if (session_status() !== PHP_SESSION_ACTIVE) {
-        session_start();
-    }
-
-    if (empty($_SESSION['csrf_token'])) {
-        $_SESSION['csrf_token'] = bin2hex(
+    if (empty($_SESSION["csrf_token"])) {
+        $_SESSION["csrf_token"] = bin2hex(
             random_bytes(32)
         );
     }
 
-    return $_SESSION['csrf_token'];
+    return $_SESSION["csrf_token"];
 }
 
-
-/**
- * Create a hidden CSRF form field.
- */
 function csrf_field()
 {
-    $token = csrf_token();
+    return '<input type="hidden" name="csrf_token" value="'
+        . e(csrf_token())
+        . '">';
+}
 
-    return '<input type="hidden" name="csrf_token" value="' .
-           e($token) .
-           '">';
+function verify_csrf_token()
+{
+    if (
+        !isset($_POST["csrf_token"]) ||
+        !isset($_SESSION["csrf_token"]) ||
+        !hash_equals(
+            $_SESSION["csrf_token"],
+            $_POST["csrf_token"]
+        )
+    ) {
+        http_response_code(403);
+        die("Invalid security token.");
+    }
+
+    return true;
 }
 
 
-/**
- * Verify the submitted CSRF token.
- */
-function verify_csrf_token()
-{
-    if (session_status() !== PHP_SESSION_ACTIVE) {
-        session_start();
-    }
+/*
+|--------------------------------------------------------------------------
+| Audit Logging
+|--------------------------------------------------------------------------
+*/
 
-    $submitted_token = $_POST['csrf_token'] ?? '';
-    $session_token = $_SESSION['csrf_token'] ?? '';
-
-    if (
-        empty($submitted_token) ||
-        empty($session_token) ||
-        !hash_equals(
-            $session_token,
-            $submitted_token
+function logAudit(
+    mysqli $conn,
+    int $userId,
+    string $action,
+    string $tableName,
+    int $recordId,
+    string $description
+) {
+    $stmt = $conn->prepare("
+        INSERT INTO audit_logs
+        (
+            user_id,
+            action,
+            table_name,
+            record_id,
+            description
         )
-    ) {
+        VALUES (?, ?, ?, ?, ?)
+    ");
+
+    if (!$stmt) {
         die(
-            "Invalid security token. Please go back and try again."
+            "AUDIT PREPARE ERROR: "
+            . $conn->error
         );
     }
+
+    $stmt->bind_param(
+        "issis",
+        $userId,
+        $action,
+        $tableName,
+        $recordId,
+        $description
+    );
+
+    if (!$stmt->execute()) {
+        die(
+            "AUDIT EXECUTE ERROR: "
+            . $stmt->error
+        );
+    }
+
+   
+
+    $stmt->close();
 
     return true;
 }

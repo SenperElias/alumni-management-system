@@ -1,52 +1,38 @@
-<?php
+ <?php
 
 session_start();
 
-require_once "../../config/database.php";
-require_once "../../config/config.php";
-require_once "../../includes/functions.php";
+require_once "../../../config/database.php";
+require_once "../../../config/config.php";
+require_once "../../../includes/functions.php";
 
-
-/*
-|--------------------------------------------------------------------------
-| ADMIN ACCESS
-|--------------------------------------------------------------------------
-*/
+/*--------------------------------------------------------------------------*/
+/* ADMIN ACCESS */
+/*--------------------------------------------------------------------------*/
 
 if (!isset($_SESSION["user_id"])) {
-
-    header("Location: ../../auth/login.php");
+    header("Location: ../../../auth/login.php");
     exit;
-
 }
 
-if ($_SESSION["role"] !== "admin") {
-
-    header("Location: ../../index.php");
+if ($_SESSION["role"] !== "system_admin") {
+    header("Location: ../../../index.php");
     exit;
-
 }
 
-
-/*
-|--------------------------------------------------------------------------
-| SEARCH
-|--------------------------------------------------------------------------
-*/
+/*--------------------------------------------------------------------------*/
+/* SEARCH */
+/*--------------------------------------------------------------------------*/
 
 $search = trim(
     $_GET["search"] ?? ""
 );
 
-
-/*
-|--------------------------------------------------------------------------
-| GET USERS
-|--------------------------------------------------------------------------
-*/
+/*--------------------------------------------------------------------------*/
+/* GET USERS */
+/*--------------------------------------------------------------------------*/
 
 $users = [];
-
 
 if ($search !== "") {
 
@@ -93,37 +79,26 @@ if ($search !== "") {
     ";
 
     $result = $conn->query($sql);
-
 }
-
 
 if ($result) {
 
     while (
         $row = $result->fetch_assoc()
     ) {
-
         $users[] = $row;
-
     }
-
 }
-
 
 if (isset($stmt)) {
-
     $stmt->close();
-
 }
-
 
 $total_users = count($users);
 
 ?>
 
-
 <!DOCTYPE html>
-
 <html lang="en">
 
 <head>
@@ -142,7 +117,7 @@ $total_users = count($users);
 
     <link
         rel="stylesheet"
-        href="../../assets/css/style.css"
+        href="../../../assets/css/style.css"
     >
 
     <style>
@@ -217,8 +192,7 @@ $total_users = count($users);
             text-decoration: none;
             border-radius: 8px;
         }
-
-        .users-card {
+ .users-card {
             background: #ffffff;
             border: 1px solid #eeeeee;
             border-radius: 14px;
@@ -227,6 +201,7 @@ $total_users = count($users);
                 0 5px 20px
                 rgba(0,0,0,0.04);
         }
+
         .table-wrapper {
             overflow-x: auto;
         }
@@ -286,6 +261,31 @@ $total_users = count($users);
             color: #777;
         }
 
+        /* ACTION BUTTONS */
+
+        .user-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            white-space: nowrap;
+        }
+
+        .user-actions form {
+            margin: 0;
+            padding: 0;
+            display: inline-block;
+        }
+
+        .user-actions a {
+            display: inline-block;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+
+        .user-actions button {
+            white-space: nowrap;
+        }
+
         @media (max-width: 650px) {
 
             .users-page {
@@ -300,6 +300,7 @@ $total_users = count($users);
             .search-form {
                 flex-direction: column;
             }
+            
 
         }
 
@@ -307,23 +308,17 @@ $total_users = count($users);
 
 </head>
 
-
 <body class="admin-body">
-
 
 <div class="admin-layout">
 
-
     <!-- SIDEBAR -->
 
-      <?php require_once __DIR__ ."/../includes/sidebar.php"; ?>
-          
-
+    <?php require_once "../sidebar.php"; ?>
 
     <!-- MAIN -->
 
     <main class="admin-main">
-
 
         <header class="admin-topbar">
 
@@ -344,9 +339,10 @@ $total_users = count($users);
 
         <section class="dashboard-content">
 
-
             <div class="users-page">
 
+
+                <!-- HEADER -->
 
                 <div class="users-header">
 
@@ -357,16 +353,36 @@ $total_users = count($users);
                         </h1>
 
                         <p>
-                            Manage administrator and alumni accounts.
+                            Manage system accounts and access roles.
                         </p>
 
                     </div>
 
 
-                    <div class="user-count">
+                    <div
+                        style="
+                            display: flex;
+                            align-items: center;
+                            gap: 12px;
+                        "
+                    >
 
-                        <?= $total_users ?>
-                        Users
+                        <div class="user-count">
+
+                            <?= $total_users ?>
+
+                            Users
+
+                        </div>
+
+
+                        <a
+                            href="add.php"
+                            class="search-button"
+                            style="text-decoration: none;"
+                        >
+                            + Add User
+                        </a>
 
                     </div>
 
@@ -376,8 +392,7 @@ $total_users = count($users);
                 <!-- SEARCH -->
 
                 <div class="search-box">
-
-                    <form
+ <form
                         method="GET"
                         class="search-form"
                     >
@@ -397,9 +412,7 @@ $total_users = count($users);
                         </button>
 
 
-                        <?php if (
-                            $search !== ""
-                        ): ?>
+                        <?php if ($search !== ""): ?>
 
                             <a
                                 href="index.php"
@@ -421,10 +434,7 @@ $total_users = count($users);
 
                     <div class="table-wrapper">
 
-
-                        <?php if (
-                            empty($users)
-                        ): ?>
+                        <?php if (empty($users)): ?>
 
                             <div class="empty">
                                 No users found.
@@ -432,9 +442,7 @@ $total_users = count($users);
 
                         <?php else: ?>
 
-
                             <table class="users-table">
-
 
                                 <thead>
 
@@ -460,6 +468,10 @@ $total_users = count($users);
                                             Registered
                                         </th>
 
+                                        <th>
+                                            Actions
+                                        </th>
+
                                     </tr>
 
                                 </thead>
@@ -467,31 +479,48 @@ $total_users = count($users);
 
                                 <tbody>
 
-
-                                    <?php foreach (
-                                        $users as $user
-                                    ): ?>
-
+                                    <?php foreach ($users as $user): ?>
 
                                         <?php
 
                                         $role =
                                             strtolower(
                                                 trim(
-                                                    $user[
-                                                        "role"
-                                                    ]
+                                                    $user["role"]
                                                 )
                                             );
 
                                         $status =
                                             strtolower(
                                                 trim(
-                                                    $user[
-                                                        "account_status"
-                                                    ]
+                                                    $user["account_status"]
                                                 )
                                             );
+
+                                        $role_labels = [
+
+                                            "admin" =>
+                                                "Alumni President",
+
+                                            "alumni" =>
+                                                "Alumni",
+
+                                            "registrar" =>
+                                                "Registrar",
+
+                                            "student_rep" =>
+                                                "Alumni Admin",
+
+                                            "system_admin" =>
+                                                "System Administrator"
+
+                                        ];
+$role_label =
+                                            $role_labels[$role]
+                                            ?? "Unknown Role";
+
+                                        $role_class =
+                                            "role-" . $role;
 
                                         ?>
 
@@ -499,24 +528,25 @@ $total_users = count($users);
                                         <tr>
 
 
+                                            <!-- ID -->
+
                                             <td>
-                                          <?= (int)
-                                                    $user[
-                                                        "user_id"
-                                                    ]
+
+                                                <?= (int)
+                                                    $user["user_id"]
                                                 ?>
 
                                             </td>
 
+
+                                            <!-- EMAIL -->
 
                                             <td>
 
                                                 <strong>
 
                                                     <?= e(
-                                                        $user[
-                                                            "email"
-                                                        ]
+                                                        $user["email"]
                                                     ) ?>
 
                                                 </strong>
@@ -524,50 +554,51 @@ $total_users = count($users);
                                             </td>
 
 
+                                            <!-- ROLE -->
+
                                             <td>
 
                                                 <span
                                                     class="role-badge
-                                                    <?= $role === "admin"
-                                                        ? "role-admin"
-                                                        : "role-alumni"
-                                                    ?>"
+                                                    <?= e($role_class) ?>"
                                                 >
 
                                                     <?= e(
-                                                        ucfirst(
-                                                            $role
-                                                        )
+                                                        $role_label
                                                     ) ?>
 
                                                 </span>
 
                                             </td>
 
+
+                                            <!-- STATUS -->
 
                                             <td>
 
                                                 <span
-                                                    class="status-badge
-                                                    <?= (
-                                                        $status === "active"
-                                                        || $status === "1"
-                                                    )
-                                                        ? "active-status"
-                                                        : "inactive-status"
-                                                    ?>"
+                                                    class="
+                                                        status-badge
+                                                        <?= (
+                                                            $status === "active"
+                                                            || $status === "1"
+                                                        )
+                                                            ? "active-status"
+                                                            : "inactive-status"
+                                                        ?>
+                                                    "
                                                 >
 
                                                     <?= e(
-                                                        ucfirst(
-                                                            $status
-                                                        )
+                                                        ucfirst($status)
                                                     ) ?>
 
                                                 </span>
 
                                             </td>
 
+
+                                            <!-- REGISTERED -->
 
                                             <td>
 
@@ -585,38 +616,93 @@ $total_users = count($users);
                                             </td>
 
 
-                                        </tr>
+                                            <!-- ACTIONS -->
 
+                                            <td>
+
+                                                <div class="user-actions">
+
+
+                                                    <!-- EDIT -->
+ <a
+                                                        href="edit.php?user_id=<?= (int) $user["user_id"] ?>"
+                                                        class="search-button"
+                                                    >
+                                                        Edit
+                                                    </a>
+
+<a href="reset_password.php?user_id=<?= (int) $user["user_id"] ?>" class="search-button">
+                                                        Reset Password
+                                    </a>
+                                                    <!-- STATUS -->
+
+                                                    <form
+                                                        method="POST"
+                                                        action="toggle_status.php"
+                                                    >
+
+                                                        <input
+                                                            type="hidden"
+                                                            name="user_id"
+                                                            value="<?= (int) $user["user_id"] ?>"
+                                                        >
+
+                                                        <input
+                                                            type="hidden"
+                                                            name="csrf_token"
+                                                            value="<?= e(csrf_token()) ?>"
+                                                        >
+
+
+                                                        <?php if (
+                                                            $status === "active"
+                                                            || $status === "1"
+                                                        ): ?>
+
+                                                            <button
+                                                                type="submit"
+                                                            >
+                                                                Deactivate
+                                                            </button>
+
+                                                        <?php else: ?>
+
+                                                            <button
+                                                                type="submit"
+                                                            >
+                                                                Activate
+                                                            </button>
+
+                                                        <?php endif; ?>
+
+                                                    </form>
+
+                                                </div>
+
+                                            </td>
+
+                                        </tr>
 
                                     <?php endforeach; ?>
 
-
                                 </tbody>
-
 
                             </table>
 
-
                         <?php endif; ?>
-
 
                     </div>
 
                 </div>
 
-
             </div>
-
 
         </section>
 
-
     </main>
-
 
 </div>
 
-
 </body>
 
-</html>      
+</html>

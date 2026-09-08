@@ -1,11 +1,17 @@
-<?php
-error_reporting(E_ALL);
+ <?php
 
+error_reporting(E_ALL);
 session_start();
 
 require_once "../config/database.php";
 require_once "../config/config.php";
 require_once "../includes/functions.php";
+
+/*
+|--------------------------------------------------------------------------
+| Authentication
+|--------------------------------------------------------------------------
+*/
 
 if (!isset($_SESSION["user_id"])) {
     header("Location: ../auth/login.php");
@@ -16,6 +22,8 @@ if ($_SESSION["role"] !== "alumni") {
     header("Location: ../index.php");
     exit;
 }
+
+requirePasswordChange();
 
 $userId = (int) $_SESSION["user_id"];
 
@@ -28,12 +36,12 @@ $success = "";
 |--------------------------------------------------------------------------
 */
 
-$stmt = $conn->prepare(
-    "SELECT alumni_id
-     FROM alumni
-     WHERE user_id = ?
-     LIMIT 1"
-);
+$stmt = $conn->prepare("
+    SELECT alumni_id
+    FROM alumni
+    WHERE user_id = ?
+    LIMIT 1
+");
 
 $stmt->bind_param("i", $userId);
 $stmt->execute();
@@ -64,32 +72,32 @@ if ($employmentId <= 0) {
 
 /*
 |--------------------------------------------------------------------------
-| Get Employment
+| Get Employment Record
 |--------------------------------------------------------------------------
 |
 | IMPORTANT:
-| alumni_id is checked here so an alumni cannot edit
-| another alumni's employment record.
+| alumni_id is checked here.
+| This prevents an alumni from editing another alumni's record.
 |
 */
 
-$stmt = $conn->prepare(
-    "SELECT
+$stmt = $conn->prepare("
+    SELECT
         employment_id,
         employment_status,
         company_name,
         job_position,
-        Work_location,
+        work_location,
         industry,
         employment_date,
-        End_date,
-        Verification_status,
-        Verification_notes
-     FROM employment
-     WHERE employment_id = ?
-     AND alumni_id = ?
-     LIMIT 1"
-);
+        end_date,
+        verification_status,
+        verification_notes
+    FROM employment
+    WHERE employment_id = ?
+      AND alumni_id = ?
+    LIMIT 1
+");
 
 $stmt->bind_param(
     "ii",
@@ -117,139 +125,219 @@ $stmt->close();
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
-    $employmentStatus =
-        trim($_POST["employment_status"] ?? "");
-
-    $companyName =
-        trim($_POST["company_name"] ?? "");
-
-    $jobPosition =
-        trim($_POST["job_position"] ?? "");
-
-    $workLocation =
-        trim($_POST["Work_location"] ?? "");
-
-    $industry =
-        trim($_POST["industry"] ?? "");
-
-    $employmentDate =
-        trim($_POST["employment_date"] ?? "");
-
-    $endDate =
-        trim($_POST["End_date"] ?? "");
-
-
     /*
     |--------------------------------------------------------------------------
-    | Validation
+    | CSRF Protection
     |--------------------------------------------------------------------------
     */
 
-    if (
-        $employmentStatus === "" ||
-        $companyName === "" ||
-        $jobPosition === "" ||
-        $employmentDate === ""
-    ) {
-
-        $error =
-            "Please fill in all required employment fields.";
-
+    if (!verify_csrf_token()) {
+        $error = "Invalid security token. Please try again.";
     } else {
+
+        $employmentStatus = trim(
+            $_POST["employment_status"] ?? ""
+        );
+
+        $companyName = trim(
+            $_POST["company_name"] ?? ""
+        );
+
+        $jobPosition = trim(
+            $_POST["job_position"] ?? ""
+        );
+
+        $workLocation = trim(
+            $_POST["work_location"] ?? ""
+        );
+
+        $industry = trim(
+            $_POST["industry"] ?? ""
+        );
+
+        $employmentDate = trim(
+            $_POST["employment_date"] ?? ""
+        );
+
+        $endDate = trim(
+            $_POST["end_date"] ?? ""
+        );
 
         /*
         |--------------------------------------------------------------------------
-        | Update
+        | Allowed Statuses
         |--------------------------------------------------------------------------
-        |
-        | Verification status and verification notes are NOT changed.
-        |
         */
 
-        $stmt = $conn->prepare(
-            "UPDATE employment
-             SET
-                employment_status = ?,
-                company_name = ?,
-                job_position = ?,
-                Work_location = ?,
-                industry = ?,
-                employment_date = ?,
-                End_date = ?,
-                updated_at = NOW(),
-                Updated_by = ?
-             WHERE employment_id = ?
-             AND alumni_id = ?"
-        );
-        $stmt->bind_param(
-            "sssssssiii",
-            $employmentStatus,
-            $companyName,
-            $jobPosition,
-            $workLocation,
-            $industry,
-            $employmentDate,
-            $endDate,
-            $userId,
-            $employmentId,
-            $alumniId
-        );
+        $allowedStatuses = [
+            "employed",
+            "self_employed",
+            "unemployed",
+            "continuing_education"
+        ];
 
-        if ($stmt->execute()) {
+        /*
+        |--------------------------------------------------------------------------
+        | Validation
+        |--------------------------------------------------------------------------
+        */
+ if (!in_array($employmentStatus, $allowedStatuses, true)) {
 
-            $success =
-                "Employment information updated successfully.";
+            $error = "Invalid employment status.";
+
+        } elseif (
+            $employmentStatus !== "unemployed" &&
+            $employmentStatus !== "continuing_education" &&
+            (
+                $companyName === "" ||
+                $jobPosition === "" ||
+                $employmentDate === ""
+            )
+        ) {
+
+            $error = "Please fill in all required employment fields.";
+
+        } elseif (
+            $employmentStatus === "continuing_education" &&
+            (
+                $employmentDate === ""
+            )
+        ) {
+
+            $error = "Please enter the education start date.";
+
+        } else {
 
             /*
-            | Reload record
+            |--------------------------------------------------------------------------
+            | Normalize Data
+            |--------------------------------------------------------------------------
             */
 
-            $reload = $conn->prepare(
-                "SELECT
-                    employment_id,
-                    employment_status,
-                    company_name,
-                    job_position,
-                    Work_location,
-                    industry,
-                    employment_date,
-                    End_date,
-                    Verification_status,
-                    Verification_notes
-                 FROM employment
-                 WHERE employment_id = ?
-                 AND alumni_id = ?
-                 LIMIT 1"
-            );
+            if ($employmentStatus === "unemployed") {
 
-            $reload->bind_param(
-                "ii",
+                $companyName = "";
+                $jobPosition = "";
+                $workLocation = "";
+                $industry = "";
+                $employmentDate = "";
+                $endDate = "";
+
+            } elseif ($employmentStatus === "continuing_education") {
+
+                /*
+                | employment_date is used as the education start date
+                | because the database does not have a separate
+                | education_start_date column.
+                */
+
+                $companyName = "";
+                $jobPosition = "";
+                $workLocation = "";
+                $industry = "";
+                $endDate = "";
+
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | Update
+            |--------------------------------------------------------------------------
+            |
+            | Alumni cannot change:
+            | - verification_status
+            | - verification_notes
+            |
+            | Those remain controlled by the administrator.
+            |
+            */
+
+            $stmt = $conn->prepare("
+                UPDATE employment
+                SET
+                    employment_status = ?,
+                    company_name = ?,
+                    job_position = ?,
+                    work_location = ?,
+                    industry = ?,
+                    employment_date = ?,
+                    end_date = ?,
+                    updated_at = NOW(),
+                    updated_by = ?
+                WHERE employment_id = ?
+                  AND alumni_id = ?
+            ");
+
+            $stmt->bind_param(
+                "sssssssiii",
+                $employmentStatus,
+                $companyName,
+                $jobPosition,
+                $workLocation,
+                $industry,
+                $employmentDate,
+                $endDate,
+                $userId,
                 $employmentId,
                 $alumniId
             );
 
-            $reload->execute();
+            if ($stmt->execute()) {
 
-            $reloadResult = $reload->get_result();
+                $success =
+                    "Employment information updated successfully.";
 
-            $employment = $reloadResult->fetch_assoc();
+                /*
+                |--------------------------------------------------------------------------
+                | Reload Record
+                |--------------------------------------------------------------------------
+                */
 
-            $reload->close();
+                $reload = $conn->prepare("
+                    SELECT
+                        employment_id,
+                        employment_status,
+                        company_name,
+                        job_position,
+                        work_location,
+                        industry,
+                        employment_date,
+                        end_date,
+                        verification_status,
+                        verification_notes
+                    FROM employment
+                    WHERE employment_id = ?
+                      AND alumni_id = ?
+                    LIMIT 1
+                ");
+ $reload->bind_param(
+                    "ii",
+                    $employmentId,
+                    $alumniId
+                );
 
-        } else {
+                $reload->execute();
 
-            $error =
-                "Unable to update employment information.";
+                $reloadResult = $reload->get_result();
+
+                $employment = $reloadResult->fetch_assoc();
+
+                $reload->close();
+
+            } else {
+
+                $error =
+                    "Unable to update employment information.";
+            }
+
+            $stmt->close();
         }
-
-        $stmt->close();
     }
 }
 
 ?>
 
 <!DOCTYPE html>
-
 <html lang="en">
 
 <head>
@@ -300,7 +388,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             </div>
 
         </div>
-
 
         <nav class="admin-nav">
 
@@ -394,8 +481,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
         <section class="dashboard-content">
 
-
             <?php if ($error !== ""): ?>
+
                 <div class="error-message">
                     <?= e($error) ?>
                 </div>
@@ -436,20 +523,25 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 <div>
 
                     <span
-                        class="verification-badge <?= e(
+ class="verification-badge
+                        <?= e(
                             strtolower(
-                                $employment["Verification_status"]
+                                $employment["verification_status"]
                                 ?? "pending"
                             )
-                        ) ?>"
+                        )
+                        ?>"
                     >
 
                         <?= e(
                             ucfirst(
-                                strtolower(
-                                    $employment["Verfication_status"]
-
-                                    ?? "pending"
+                                str_replace(
+                                    "_",
+                                    " ",
+                                    strtolower(
+                                        $employment["verification_status"]
+                                        ?? "pending"
+                                    )
                                 )
                             )
                         ) ?>
@@ -458,9 +550,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                 </div>
 
+
                 <?php if (
                     !empty(
-                        $employment["Verification_notes"]
+                        $employment["verification_notes"]
                     )
                 ): ?>
 
@@ -471,7 +564,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                         </strong>
 
                         <?= e(
-                            $employment["Verification_notes"]
+                            $employment["verification_notes"]
                         ) ?>
 
                     </div>
@@ -500,8 +593,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                 <form method="POST">
 
+                    <?= csrf_field() ?>
+
+
                     <div class="form-grid">
 
+
+                        <!-- STATUS -->
 
                         <div class="form-group">
 
@@ -520,8 +618,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                                 </option>
 
                                 <option
-                                    value="Employed"
-                                    <?= $employment["employment_status"] === "Employed"
+                                    value="employed"
+                                    <?= $employment["employment_status"] === "employed"
                                         ? "selected"
                                         : "" ?>
                                 >
@@ -529,8 +627,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                                 </option>
 
                                 <option
-                                    value="Self-employed"
-                                    <?= $employment["employment_status"] === "Self-employed"
+                                    value="self_employed"
+                                    <?= $employment["employment_status"] === "self_employed"
                                         ? "selected"
                                         : "" ?>
                                 >
@@ -538,8 +636,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                                 </option>
 
                                 <option
-                      value="Unemployed"
-                                    <?= $employment["employment_status"] === "Unemployed"
+                                    value="unemployed"
+                                    <?= $employment["employment_status"] === "unemployed"
                                         ? "selected"
                                         : "" ?>
                                 >
@@ -547,21 +645,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                                 </option>
 
                                 <option
-                                    value="Student"
-                                    <?= $employment["employment_status"] === "Student"
+                                    value="continuing_education"
+<?= $employment["employment_status"] === "continuing_education"
                                         ? "selected"
                                         : "" ?>
                                 >
-                                    Student
-                                </option>
-
-                                <option
-                                    value="Retired"
-                                    <?= $employment["employment_status"] === "Retired"
-                                        ? "selected"
-                                        : "" ?>
-                                >
-                                    Retired
+                                    Continuing Education
                                 </option>
 
                             </select>
@@ -569,10 +658,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                         </div>
 
 
+                        <!-- COMPANY -->
+
                         <div class="form-group">
 
                             <label for="company_name">
-                                Company / Organization *
+                                Company / Organization
                             </label>
 
                             <input
@@ -580,18 +671,19 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                                 id="company_name"
                                 name="company_name"
                                 value="<?= e(
-                                    $employment["company_name"]
+                                    $employment["company_name"] ?? ""
                                 ) ?>"
-                                required
                             >
 
                         </div>
 
 
+                        <!-- POSITION -->
+
                         <div class="form-group">
 
                             <label for="job_position">
-                                Job Position *
+                                Job Position
                             </label>
 
                             <input
@@ -599,31 +691,34 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                                 id="job_position"
                                 name="job_position"
                                 value="<?= e(
-                                    $employment["job_position"]
+                                    $employment["job_position"] ?? ""
                                 ) ?>"
-                                required
                             >
 
                         </div>
 
 
+                        <!-- WORK LOCATION -->
+
                         <div class="form-group">
 
-                            <label for="Work_location">
+                            <label for="work_location">
                                 Work Location
                             </label>
 
                             <input
                                 type="text"
-                                id="Work_location"
-                                name="Work_location"
+                                id="work_location"
+                                name="work_location"
                                 value="<?= e(
-                                    $employment["Work_location"]
+                                    $employment["work_location"] ?? ""
                                 ) ?>"
                             >
 
                         </div>
 
+
+                        <!-- INDUSTRY -->
 
                         <div class="form-group">
 
@@ -636,43 +731,46 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                                 id="industry"
                                 name="industry"
                                 value="<?= e(
-                                    $employment["industry"]
+                                    $employment["industry"] ?? ""
                                 ) ?>"
                             >
 
                         </div>
 
+
+                        <!-- START DATE -->
 
                         <div class="form-group">
 
                             <label for="employment_date">
-                                Employment Start Date *
+                                Employment Start Date
                             </label>
-                             <input
+
+                            <input
                                 type="date"
                                 id="employment_date"
                                 name="employment_date"
                                 value="<?= e(
-                                    $employment["employment_date"]
+                                    $employment["employment_date"] ?? ""
                                 ) ?>"
-                                required
                             >
 
                         </div>
 
 
+                        <!-- END DATE -->
+
                         <div class="form-group">
 
-                            <label for="End_date">
+                            <label for="end_date">
                                 End Date
                             </label>
-
-                            <input
+ <input
                                 type="date"
-                                id="End_date"
-                                name="End_date"
+                                id="end_date"
+                                name="end_date"
                                 value="<?= e(
-                                    $employment["End_date"] ?? ""
+                                    $employment["end_date"] ?? ""
                                 ) ?>"
                             >
 
@@ -707,7 +805,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             </div>
 
-
         </section>
 
     </main>
@@ -716,4 +813,4 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
 </body>
 
-</html>         
+</html>

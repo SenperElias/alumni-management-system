@@ -74,7 +74,7 @@ $stmt = $conn->prepare("
         status
     FROM events
     WHERE event_id = ?
-      AND status = 'Published'
+      AND status = 'published'
     LIMIT 1
 ");
 

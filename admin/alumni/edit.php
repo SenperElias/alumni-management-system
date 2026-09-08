@@ -70,7 +70,7 @@ $error = "";
 $success = "";
 
 $email = $alumni["email"] ?? "";
-$alumniIdNumber = $alumni["alumni_id_number"] ?? "";
+$alumniIdNumber = $alumni["college_id_number"] ?? "";
 $firstName = $alumni["first_name"] ?? "";
 $lastName = $alumni["last_name"] ?? "";
 $gender = $alumni["gender"] ?? "";
@@ -117,7 +117,7 @@ if ($departmentResult) {
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     $email = trim($_POST["email"] ?? "");
-    $alumniIdNumber = trim($_POST["alumni_id_number"] ?? "");
+    $alumniIdNumber = trim($_POST["college_id_number"] ?? "");
     $firstName = trim($_POST["first_name"] ?? "");
     $lastName = trim($_POST["last_name"] ?? "");
     $gender = trim($_POST["gender"] ?? "");
@@ -196,7 +196,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $idCheck = $conn->prepare(
                 "SELECT alumni_id
                  FROM alumni
-                 WHERE alumni_id_number = ?
+                 WHERE college_id_number = ?
                  AND alumni_id != ?
                  LIMIT 1"
             );
@@ -346,7 +346,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                         $alumniUpdate = $conn->prepare(
                             "UPDATE alumni
                              SET
-                                alumni_id_number = ?,
+                                college_id_number = ?,
                                 first_name = ?,
                                 last_name = ?,
                                 gender = ?,
@@ -702,14 +702,14 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                         <div class="form-field">
 
-                            <label for="alumni_id_number">
-                                Alumni ID Number *
+                            <label for="college_id_number">
+                                College ID Number *
                             </label>
 
                             <input
                                 type="text"
-                                id="alumni_id_number"
-                                name="alumni_id_number"
+                                id="college_id_number"
+                                name="college_id_number"
                                 value="<?= e($alumniIdNumber) ?>"
                                 required
                             >

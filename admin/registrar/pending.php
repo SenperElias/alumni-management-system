@@ -25,7 +25,7 @@ if ($_SESSION["role"] !== "registrar") {
 $sql = "
     SELECT
         r.registration_id,
-        r.alumni_id_number,
+        r.college_id_number,
         r.first_name,
         r.last_name,
         r.email,
@@ -42,7 +42,15 @@ $sql = "
 $result = $conn->query($sql);
 
 if (!$result) {
-    die("Database error: " . $conn->error);
+    error_log(
+        "Database error in registrar/pending.php: " .
+        $conn->error
+    );
+
+    die(
+        "Unable to load pending registrations. " .
+        "Please try again later."
+    );
 }
 
 ?>
@@ -206,7 +214,7 @@ $activePage= "pending";
                                         <td>
 
                                             <?= e(
-                                                $row["alumni_id_number"]
+                                                $row["college_id_number"]
                                             ) ?>
 
                                         </td>

@@ -59,7 +59,7 @@ if ($departmentResult) {
 $sql = "
     SELECT
         a.alumni_id,
-        a.alumni_id_number,
+        a.college_id_number,
         a.first_name,
         a.last_name,
         u.email,
@@ -94,7 +94,7 @@ if ($search !== "") {
         AND (
             a.first_name LIKE ?
             OR a.last_name LIKE ?
-            OR a.alumni_id_number LIKE ?
+            OR a.college_id_number LIKE ?
             OR u.email LIKE ?
         )
     ";
@@ -260,10 +260,7 @@ $result = $stmt->get_result();
             </div>
 
 
-            <a href="add.php">
-                Add Alumni
-            </a>
-
+           
 
             <a
                 href="alumni.php"
@@ -611,7 +608,7 @@ $result = $stmt->get_result();
  <td>
 
                                             <?= e(
-                                                $row["alumni_id_number"]
+                                                $row["college_id_number"]
                                             ) ?>
 
                                         </td>
@@ -694,12 +691,7 @@ $result = $stmt->get_result();
             <div class="form-actions">
 
 
-                <a
-                    href="add.php"
-                    class="primary-button"
-                >
-                    + Add Alumni
-                </a>
+               
 
 
                 <a

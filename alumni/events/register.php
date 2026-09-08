@@ -186,44 +186,65 @@ if (
     exit;
 }
 
-/*
-|--------------------------------------------------------------------------
+/*--------------------------------------------------------------------------
 | Register Alumni
-|--------------------------------------------------------------------------
-*/
+*--------------------------------------------------------------------------*/
 
+/* Reactivate a previous cancelled registration */
 $stmt = $conn->prepare("
-    INSERT INTO event_registrations
-    (
-        event_id,
-        alumni_id,
-        registration_status,
-        registered_at
-    )
-    VALUES (?, ?, 'Registered', NOW())
+    UPDATE event_registrations
+    SET
+        registration_status = 'Registered',
+        registered_at = NOW(),
+        cancelled_at = NULL
+    WHERE event_id = ?
+      AND alumni_id = ?
+      AND registration_status = 'Cancelled'
 ");
+
 $stmt->bind_param(
     "ii",
     $eventId,
     $alumniId
 );
 
-if ($stmt->execute()) {
+$stmt->execute();
 
-    $stmt->close();
+$reactivated = $stmt->affected_rows;
 
-    header(
-        "Location: view-event.php?id=" .
-        $eventId .
-        "&registered=1"
+$stmt->close();
+
+/* If no cancelled registration exists, create a new registration */
+if ($reactivated === 0) {
+
+    $stmt = $conn->prepare("
+        INSERT INTO event_registrations (
+            event_id,
+            alumni_id,
+            registration_status,
+            registered_at
+        )
+        VALUES (?, ?, 'Registered', NOW())
+    ");
+
+    $stmt->bind_param(
+        "ii",
+        $eventId,
+        $alumniId
     );
 
-    exit;
-
-} else {
+    if (!$stmt->execute()) {
+        $stmt->close();
+        die("Unable to register for this event.");
+    }
 
     $stmt->close();
-
-    die("Unable to register for this event.");
 }
-?>
+
+/* Registration successful */
+header(
+    "Location: view-event.php?id=" .
+    $eventId .
+    "&registered=1"
+);
+exit;

@@ -11,7 +11,7 @@ $currentFolder = basename(dirname($_SERVER['PHP_SELF']));
         </div>
         <div>
             <strong>Alumni System</strong>
-            <small>Admin Portal</small>
+            <small>Alumni President Portal</small>
         </div>
     </div>
 
@@ -114,13 +114,7 @@ $currentFolder = basename(dirname($_SERVER['PHP_SELF']));
             SYSTEM
         </div>
 
-        <!-- Users -->
-        <a
-           href="/almuni-management-system/admin/users/index.php"
-            class="<?= $currentFolder === 'users' ? 'active' : '' ?>"
-        >
-            Users
-        </a>
+
 
         <!-- Notifications -->
         <a

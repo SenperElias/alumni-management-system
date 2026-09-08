@@ -176,7 +176,7 @@ $sql = "
         c.verified_by,
         c.verified_at,
         c.created_at,
-        a.alumni_id_number,
+        a.college_id_number,
         a.first_name,
         a.last_name,
         a.phone
@@ -925,7 +925,7 @@ elseif (
 
                                     <?= e(
                                         $contribution[
-                                            "alumni_id_number"
+                                            "college_id_number"
                                         ]
                                     ) ?>
 

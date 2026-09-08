@@ -286,7 +286,7 @@ $pageTitle =
                     <span class="profile-id">
                         ID:
                         <?= e(
-                            $alumni["alumni_id_number"]
+                            $alumni["college_id_number"]
                         ) ?>
                     </span>
 
@@ -476,7 +476,7 @@ $pageTitle =
 
                         <strong>
                             <?= e(
-                                $alumni["alumni_id_number"]
+                                $alumni["college_id_number"]
                             ) ?>
                         </strong>
 

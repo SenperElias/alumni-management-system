@@ -50,7 +50,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $email = trim($_POST["email"] ?? "");
     $password = $_POST["password"] ?? "";
 
-    $alumniIdNumber = trim($_POST["alumni_id_number"] ?? "");
+    $alumniIdNumber = trim($_POST["college_id_number"] ?? "");
     $firstName = trim($_POST["first_name"] ?? "");
     $lastName = trim($_POST["last_name"] ?? "");
     $gender = trim($_POST["gender"] ?? "");
@@ -123,7 +123,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $checkId = $conn->prepare(
                 "SELECT alumni_id
                  FROM alumni
-                 WHERE alumni_id_number = ?
+                 WHERE college_id_number = ?
                  LIMIT 1"
             );
 
@@ -268,7 +268,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                             "INSERT INTO alumni
                             (
                                 user_id,
-                                alumni_id_number,
+                                college_id_number,
                                 first_name,
                                 last_name,
                                 gender,
@@ -638,14 +638,14 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                         <div class="form-field">
 
-                            <label for="alumni_id_number">
-                                Alumni ID Number *
+                            <label for="college_id_number">
+                                College ID Number *
                             </label>
 
                             <input
                                 type="text"
-                                id="alumni_id_number"
-                                name="alumni_id_number"
+                                id="college_id_number"
+                                name="college_id_number"
                                 value="<?= e($alumniIdNumber ?? '') ?>"
                                 required
                             >

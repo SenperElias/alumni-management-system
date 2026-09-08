@@ -1,4 +1,4 @@
- <?php
+<?php
 
 session_start();
 
@@ -6,8 +6,7 @@ require_once "../../config/database.php";
 require_once "../../config/config.php";
 require_once "../../includes/functions.php";
 
-/*
-|--------------------------------------------------------------------------
+/*|--------------------------------------------------------------------------
 | ALUMNI ACCESS
 |--------------------------------------------------------------------------
 */
@@ -24,14 +23,16 @@ if ($_SESSION["role"] !== "alumni") {
 
 $user_id = (int) $_SESSION["user_id"];
 
-/*
-|--------------------------------------------------------------------------
+/*|--------------------------------------------------------------------------
 | GET LOGGED-IN ALUMNI
 |--------------------------------------------------------------------------
 */
 
 $stmt = $conn->prepare("
-    SELECT alumni_id
+    SELECT
+        alumni_id,
+        first_name,
+        last_name
     FROM alumni
     WHERE user_id = ?
     LIMIT 1
@@ -55,8 +56,7 @@ if (!$alumni) {
 
 $mentee_id = (int) $alumni["alumni_id"];
 
-/*
-|--------------------------------------------------------------------------
+/*|--------------------------------------------------------------------------
 | GET MENTOR ID FROM URL
 |--------------------------------------------------------------------------
 | Example:
@@ -72,8 +72,7 @@ if ($mentor_id <= 0) {
     die("Invalid mentor.");
 }
 
-/*
-|--------------------------------------------------------------------------
+/*|--------------------------------------------------------------------------
 | GET MENTOR INFORMATION
 |--------------------------------------------------------------------------
 */
@@ -83,9 +82,9 @@ $stmt = $conn->prepare("
         mp.mentor_profile_id,
         mp.expertise,
         mp.skills,
-        
         mp.status,
         a.alumni_id,
+        a.user_id,
         a.first_name,
         a.last_name
     FROM mentor_profiles mp
@@ -112,8 +111,7 @@ if (!$mentor) {
     die("Mentor not found or mentor is not active.");
 }
 
-/*
-|--------------------------------------------------------------------------
+/*|--------------------------------------------------------------------------
 | PREVENT REQUESTING YOURSELF
 |--------------------------------------------------------------------------
 */
@@ -122,23 +120,22 @@ if ((int) $mentor["alumni_id"] === $mentee_id) {
     die("You cannot send a mentorship request to yourself.");
 }
 
-/*
-|--------------------------------------------------------------------------
+/*|--------------------------------------------------------------------------
 | HANDLE REQUEST SUBMISSION
 |--------------------------------------------------------------------------
 */
 
 $error = "";
 $success = "";
+$message = "";
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     $message = trim($_POST["message"] ?? "");
 
-    /*
-    |--------------------------------------------------------------------------
+    /*----------------------------------------------------------------------
     | VALIDATE MESSAGE
-    |--------------------------------------------------------------------------
+    ----------------------------------------------------------------------
     */
 
     if ($message === "") {
@@ -151,10 +148,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     } else {
 
-        /*
-        |--------------------------------------------------------------------------
+        /*------------------------------------------------------------------
         | CHECK FOR EXISTING PENDING REQUEST
-        |--------------------------------------------------------------------------
+        ------------------------------------------------------------------
         */
 
         $stmt = $conn->prepare("
@@ -170,9 +166,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             die("Database error: " . $conn->error);
         }
 
-        $stmt->bind_param(
+        $mentor_alumni_id = (int) $mentor["alumni_id"];
+ $stmt->bind_param(
             "ii",
-            $mentor["alumni_id"],
+            $mentor_alumni_id,
             $mentee_id
         );
 
@@ -189,10 +186,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
         } else {
 
-            /*
-            |--------------------------------------------------------------------------
+            /*--------------------------------------------------------------
             | INSERT NEW MENTORSHIP REQUEST
-            |--------------------------------------------------------------------------
+            --------------------------------------------------------------
             */
 
             $status = "pending";
@@ -222,7 +218,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             $stmt->bind_param(
                 "iiss",
-                $mentor["alumni_id"],
+                $mentor_alumni_id,
                 $mentee_id,
                 $message,
                 $status
@@ -230,22 +226,72 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             if ($stmt->execute()) {
 
-                $success = "Mentorship request sent successfully.";
+                $stmt->close();
 
-                /*
-                |--------------------------------------------------------------------------
-                | CLEAR MESSAGE
-                |--------------------------------------------------------------------------
+                /*----------------------------------------------------------
+                | NOTIFY MENTOR
+                ----------------------------------------------------------
                 */
 
+                $notificationTitle = "New Mentorship Request";
+
+                $notificationMessage =
+                    $alumni["first_name"] . " " .
+                    $alumni["last_name"] .
+                    " has sent you a mentorship request.";
+
+                $notificationType = "mentorship";
+
+                $notifyStmt = $conn->prepare("
+                    INSERT INTO notifications
+                    (
+                        user_id,
+                        title,
+                        message,
+                        type,
+                        opportunity_id,
+                        event_id,
+                        is_read
+                    )
+                    VALUES
+                    (
+                        ?,
+                        ?,
+                        ?,
+                        ?,
+                        NULL,
+                        NULL,
+                        0
+                    )
+                ");
+
+                if ($notifyStmt) {
+
+                    $mentor_user_id = (int) $mentor["user_id"];
+
+                    $notifyStmt->bind_param(
+                        "isss",
+                        $mentor_user_id,
+                        $notificationTitle,
+                        $notificationMessage,
+                        $notificationType
+                    );
+
+                    $notifyStmt->execute();
+                    $notifyStmt->close();
+                }
+
+                $success = "Mentorship request sent successfully.";
+
+                /* Clear message */
                 $message = "";
 
             } else {
 
+                $stmt->close();
+
                 $error = "Unable to send mentorship request.";
             }
-
-            $stmt->close();
         }
     }
 }
@@ -253,6 +299,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 ?>
 
 <!DOCTYPE html>
+
 <html lang="en">
 
 <head>
@@ -281,8 +328,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             margin: 40px auto;
             padding: 20px;
         }
-
-        .back-button {
+ .back-button {
             display: inline-block;
             margin-bottom: 20px;
             padding: 10px 16px;
@@ -353,7 +399,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             color: #4a2c1d;
             font-weight: 600;
         }
- .form-group textarea {
+
+        .form-group textarea {
             width: 100%;
             min-height: 160px;
             padding: 12px;
@@ -433,6 +480,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             .submit-button {
                 width: 100%;
             }
+
         }
 
     </style>
@@ -460,8 +508,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 <strong>
                     Alumni System
                 </strong>
-
-                <small>
+ <small>
                     Alumni Portal
                 </small>
 
@@ -506,11 +553,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 ACTIVITIES
             </div>
 
-            <a href="#">
+            <a href="../projects.php">
                 Projects
             </a>
 
-            <a href="#">
+            <a href="../events.php">
                 Events
             </a>
 
@@ -518,11 +565,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 SYSTEM
             </div>
 
-            <a href="#">
+            <a href="../notifications.php">
                 Notifications
             </a>
 
-            <a href="#">
+            <a href="../settings.php">
                 Settings
             </a>
 
@@ -537,7 +584,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     </aside>
 
-
     <!-- =====================================================
          MAIN CONTENT
     ====================================================== -->
@@ -547,7 +593,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         <header class="admin-topbar">
 
             <div>
- <h1>
+
+                <h1>
                     Request Mentorship
                 </h1>
 
@@ -558,7 +605,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             </div>
 
         </header>
-
 
         <section class="dashboard-content">
 
@@ -571,13 +617,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     ← Back to Mentors
                 </a>
 
-
                 <div class="request-panel">
 
                     <h2>
                         Request Mentorship
                     </h2>
-
 
                     <!-- SUCCESS -->
 
@@ -603,7 +647,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                     <?php endif; ?>
 
-
                     <!-- ERROR -->
 
                     <?php if ($error !== ""): ?>
@@ -614,7 +657,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                     <?php endif; ?>
 
-
                     <!-- MENTOR INFORMATION -->
 
                     <div class="mentor-card">
@@ -622,6 +664,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                         <div class="mentor-name">
 
                             <?= e($mentor["first_name"]) ?>
+
                             <?= e($mentor["last_name"]) ?>
 
                         </div>
@@ -631,7 +674,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                             <?= e($mentor["expertise"]) ?>
 
                         </div>
-
 
                         <?php if (!empty($mentor["bio"])): ?>
 
@@ -644,9 +686,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                             </div>
 
                         <?php endif; ?>
-
-
-                        <?php if (!empty($mentor["skills"])): ?>
+ <?php if (!empty($mentor["skills"])): ?>
 
                             <div class="mentor-skills">
 
@@ -661,7 +701,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                         <?php endif; ?>
 
                     </div>
-
 
                     <!-- REQUEST FORM -->
 
@@ -687,14 +726,14 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                             </div>
 
-
                             <button
                                 type="submit"
                                 class="submit-button"
                             >
                                 Send Mentorship Request
                             </button>
- <a
+
+                            <a
                                 href="my-requests.php"
                                 class="view-requests"
                             >

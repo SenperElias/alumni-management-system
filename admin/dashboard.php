@@ -260,7 +260,7 @@ $recentOpportunities = $conn->query("
     >
 
     <title>
-        Admin Dashboard |
+        Alumni_president Dashboard |
         <?= e(SITE_NAME) ?>
     </title>
 
@@ -603,12 +603,12 @@ $recentOpportunities = $conn->query("
             <div>
 
                 <h1>
-                    Admin Dashboard
+                    Alumni President Dashboard
                 </h1>
 
                 <p>
-                    Welcome back. Manage your alumni system
-                    from here.
+                    Welcome back, Oversee alumni administration and activities from here
+                    
                 </p>
 
             </div>
@@ -981,7 +981,7 @@ $recentOpportunities = $conn->query("
                             </h2>
 
                             <p>
-                                Common administration tasks.
+                                Common alumni administration tasks.
                             </p>
 
                         </div>

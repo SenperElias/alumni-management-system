@@ -1,4 +1,4 @@
- <?php
+<?php
 
 session_start();
 
@@ -24,11 +24,32 @@ if ($_SESSION["role"] !== "registrar") {
 
 /*
 |--------------------------------------------------------------------------
+| Only POST Requests Are Allowed
+|--------------------------------------------------------------------------
+*/
+
+if ($_SERVER["REQUEST_METHOD"] !== "POST") {
+    header("Location: pending.php");
+    exit;
+}
+
+/*
+|--------------------------------------------------------------------------
+| CSRF Protection
+|--------------------------------------------------------------------------
+*/
+
+if (!verify_csrf_token()) {
+    die("Invalid security token.");
+}
+
+/*
+|--------------------------------------------------------------------------
 | Get Registration ID
 |--------------------------------------------------------------------------
 */
 
-$registration_id = (int) ($_GET["id"] ?? 0);
+$registration_id = (int) ($_POST["registration_id"] ?? 0);
 
 if ($registration_id <= 0) {
     die("Invalid registration.");
@@ -50,7 +71,15 @@ $sql = "
 $stmt = $conn->prepare($sql);
 
 if (!$stmt) {
-    die("Database error: " . $conn->error);
+    error_log(
+        "Database prepare error in registrar/approve.php: " .
+        $conn->error
+    );
+
+    die(
+        "Unable to process the registration. " .
+        "Please try again later."
+    );
 }
 
 $stmt->bind_param("i", $registration_id);
@@ -74,74 +103,6 @@ if (!$registration) {
 if ($registration["status"] !== "pending") {
     die("This registration has already been processed.");
 }
-
-/*
-|--------------------------------------------------------------------------
-| Check Existing Email
-|--------------------------------------------------------------------------
-*/
-
-$checkEmail = $conn->prepare("
-    SELECT user_id
-    FROM users
-    WHERE email = ?
-    LIMIT 1
-");
-
-if (!$checkEmail) {
-    die("Database error: " . $conn->error);
-}
-
-$checkEmail->bind_param(
-    "s",
-    $registration["email"]
-);
-
-$checkEmail->execute();
-
-$emailResult = $checkEmail->get_result();
-
-if ($emailResult->num_rows > 0) {
-    $checkEmail->close();
-
-    die("An account with this email already exists.");
-}
-
-$checkEmail->close();
-
-/*
-|--------------------------------------------------------------------------
-| Check Existing Alumni ID
-|--------------------------------------------------------------------------
-*/
-
-$checkId = $conn->prepare("
-    SELECT alumni_id
-    FROM alumni
-    WHERE alumni_id_number = ?
-    LIMIT 1
-");
-
-if (!$checkId) {
-    die("Database error: " . $conn->error);
-}
-
-$checkId->bind_param(
-    "s",
-    $registration["alumni_id_number"]
-);
-
-$checkId->execute();
-
-$idResult = $checkId->get_result();
-
-if ($idResult->num_rows > 0) {
-    $checkId->close();
-
-    die("This Alumni ID already exists.");
-}
-
-$checkId->close();
 
 /*
 |--------------------------------------------------------------------------
@@ -187,15 +148,15 @@ try {
 
     if (!$userStmt->execute()) {
         throw new Exception(
-            "Unable to create user account: "
-            . $userStmt->error
+            "Unable to create user account."
         );
     }
 
     $user_id = $conn->insert_id;
 
     $userStmt->close();
- /*
+
+    /*
     |--------------------------------------------------------------------------
     | Create Alumni Profile
     |--------------------------------------------------------------------------
@@ -205,7 +166,7 @@ try {
         INSERT INTO alumni
         (
             user_id,
-            alumni_id_number,
+ college_id_number,
             first_name,
             last_name,
             gender,
@@ -238,7 +199,7 @@ try {
     $alumniStmt->bind_param(
         "isssssssiiss",
         $user_id,
-        $registration["alumni_id_number"],
+        $registration["college_id_number"],
         $registration["first_name"],
         $registration["last_name"],
         $registration["gender"],
@@ -253,8 +214,7 @@ try {
 
     if (!$alumniStmt->execute()) {
         throw new Exception(
-            "Unable to create alumni profile: "
-            . $alumniStmt->error
+            "Unable to create alumni profile."
         );
     }
 
@@ -282,27 +242,42 @@ try {
         );
     }
 
+    $registrarId = (int) $_SESSION["user_id"];
+
     $updateStmt->bind_param(
         "ii",
-        $_SESSION["user_id"],
+        $registrarId,
         $registration_id
     );
 
     if (!$updateStmt->execute()) {
         throw new Exception(
-            "Unable to update registration: "
-            . $updateStmt->error
+            "Unable to update registration."
         );
     }
 
     if ($updateStmt->affected_rows !== 1) {
         throw new Exception(
-            "Registration could not be approved because "
-            . "it has already been processed."
+            "Registration could not be approved."
         );
     }
 
     $updateStmt->close();
+
+    /*
+    |--------------------------------------------------------------------------
+    | Audit Log
+    |--------------------------------------------------------------------------
+    */
+
+    logAudit(
+        $conn,
+        $registrarId,
+        "APPROVE",
+        "alumni_registrations",
+        $registration_id,
+        "Registrar approved alumni registration."
+    );
 
     /*
     |--------------------------------------------------------------------------
@@ -322,12 +297,7 @@ try {
         )
         VALUES
         (
-            ?,
-            ?,
-            ?,
-            ?,
-            0,
-            NOW()
+            ?, ?, ?, ?, 0, NOW()
         )
     ");
 
@@ -340,8 +310,8 @@ try {
     $notificationTitle = "Registration Approved";
 
     $notificationMessage =
-        "Your alumni registration has been approved. "
-        . "You can now log in to your alumni account.";
+        "Your alumni registration has been approved. " .
+        "You can now log in to your alumni account.";
 
     $notificationType = "system";
 
@@ -355,23 +325,22 @@ try {
 
     if (!$notificationStmt->execute()) {
         throw new Exception(
-            "Unable to create notification: "
-            . $notificationStmt->error
+            "Unable to create notification."
         );
     }
 
     $notificationStmt->close();
- /*
+
+    /*
     |--------------------------------------------------------------------------
     | Commit Everything
     |--------------------------------------------------------------------------
     */
 
     $conn->commit();
-
-    header(
-        "Location: pending.php?success="
-        . urlencode(
+ header(
+        "Location: pending.php?success=" .
+        urlencode(
             "Registration approved successfully."
         )
     );
@@ -382,8 +351,13 @@ try {
 
     $conn->rollback();
 
-    die(
-        "Unable to approve registration: "
-        . e($e->getMessage())
+    error_log(
+        "Approval error in registrar/approve.php: " .
+        $e->getMessage()
     );
-} 
+
+    die(
+        "Unable to approve registration. " .
+        "Please try again later."
+    );
+}

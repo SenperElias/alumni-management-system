@@ -24,6 +24,8 @@ if ($_SESSION["role"] !== "alumni") {
 $userId = (int) $_SESSION["user_id"];
 
 
+requirePasswordChange();
+$userId = (int) $_SESSION["user_id"];
 /*|--------------------------------------------------------------------------
 | Get Alumni Information
 |--------------------------------------------------------------------------
@@ -32,7 +34,7 @@ $userId = (int) $_SESSION["user_id"];
 $stmt = $conn->prepare("
     SELECT
         a.alumni_id,
-        a.alumni_id_number,
+        a.college_id_number,
         a.first_name,
         a.last_name,
         a.profile_photo,
@@ -137,7 +139,7 @@ $fieldsToCheck = [
     $alumni["first_name"],
     $alumni["last_name"],
     $alumni["email"],
-    $alumni["alumni_id_number"],
+    $alumni["college_id_number"],
     $alumni["department_id"],
     $alumni["graduation_year"],
     $alumni["bio"]
@@ -515,7 +517,7 @@ $profileCompletion =
                         <strong>
 
                             <?= e(
-                                $alumni["alumni_id_number"]
+                                $alumni["college_id_number"]
                             ) ?>
 
                         </strong>

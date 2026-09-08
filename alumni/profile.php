@@ -33,7 +33,7 @@ $userId = (int) $_SESSION["user_id"];
 $stmt = $conn->prepare(
     "SELECT
         a.alumni_id,
-        a.alumni_id_number,
+        a.college_id_number,
         a.first_name,
         a.last_name,
         a.gender,
@@ -189,7 +189,7 @@ require_once __DIR__ . "/includes/sidebar.php";
 
                     <span>
                         Alumni ID:
-                        <?= e($alumni["alumni_id_number"]) ?>
+                        <?= e($alumni["college_id_number"]) ?>
                     </span>
 
                 </div>
@@ -390,12 +390,12 @@ require_once __DIR__ . "/includes/sidebar.php";
                     <div class="profile-info-item">
 
                         <span>
-                            Alumni ID Number
+                            College ID Number
                         </span>
 
                         <strong>
                             <?= e(
-                                $alumni["alumni_id_number"]
+                                $alumni["college_id_number"]
                             ) ?>
                         </strong>
 

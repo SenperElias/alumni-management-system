@@ -6,6 +6,12 @@ require_once "../../config/database.php";
 require_once "../../config/config.php";
 require_once "../../includes/functions.php";
 
+/*
+|--------------------------------------------------------------------------
+| Authorization
+|--------------------------------------------------------------------------
+*/
+
 if (!isset($_SESSION["user_id"])) {
     header("Location: ../../auth/login.php");
     exit;
@@ -16,12 +22,17 @@ if ($_SESSION["role"] !== "registrar") {
     exit;
 }
 
+/*
+|--------------------------------------------------------------------------
+| Get Alumni ID
+|--------------------------------------------------------------------------
+*/
+
 $alumni_id = (int) ($_GET["id"] ?? 0);
 
 if ($alumni_id <= 0) {
     die("Invalid alumni ID.");
 }
-
 
 /*
 |--------------------------------------------------------------------------
@@ -36,27 +47,43 @@ $sql = "
         u.account_status,
         d.department_name
     FROM alumni a
-
     LEFT JOIN users u
         ON a.user_id = u.user_id
-
     LEFT JOIN departments d
         ON a.department_id = d.department_id
-
     WHERE a.alumni_id = ?
-
     LIMIT 1
 ";
 
 $stmt = $conn->prepare($sql);
 
 if (!$stmt) {
-    die("Database error: " . $conn->error);
+    error_log(
+        "Database error in registrar/view_alumni.php: " .
+        $conn->error
+    );
+
+    die(
+        "Unable to load alumni information. " .
+        "Please try again later."
+    );
 }
 
 $stmt->bind_param("i", $alumni_id);
 
-$stmt->execute();
+if (!$stmt->execute()) {
+    error_log(
+        "Database execute error in registrar/view_alumni.php: " .
+        $stmt->error
+    );
+
+    $stmt->close();
+
+    die(
+        "Unable to load alumni information. " .
+        "Please try again later."
+    );
+}
 
 $result = $stmt->get_result();
 
@@ -64,13 +91,17 @@ $alumni = $result->fetch_assoc();
 
 $stmt->close();
 
+/*
+|--------------------------------------------------------------------------
+| Alumni Not Found
+|--------------------------------------------------------------------------
+*/
 
 if (!$alumni) {
     die("Alumni record not found.");
 }
 
 ?>
-
 
 <!DOCTYPE html>
 
@@ -97,106 +128,21 @@ if (!$alumni) {
 
 </head>
 
-
 <body class="admin-body">
 
-
 <div class="admin-layout">
-
 
     <!-- =====================================================
          SIDEBAR
     ====================================================== -->
 
-    <aside class="admin-sidebar">
+    <?php
 
+    $activePage = "alumni";
 
-        <div class="admin-brand">
+    require_once __DIR__ . "/includes/sidebar.php";
 
-            <div class="brand-logo">
-                TM
-            </div>
-
-            <div>
-
-                <strong>
-                    Alumni System
-                </strong>
-
-                <small>
-                    Registrar Panel
-                </small>
-
-            </div>
-
-        </div>
-
-
-
-        <nav class="admin-nav">
-
-
-            <a href="dashboard.php">
-                Dashboard
-            </a>
-
-
-            <div class="nav-section">
-                REGISTRATION
-            </div>
-
-
-            <a href="pending.php">
-                Pending Registrations
-            </a>
-
-
-            <a href="approved.php">
-                Approved Registrations
-            </a>
-
-
-            <a href="rejected.php">
-                Rejected Registrations
-            </a>
-
-
-            <div class="nav-section">
-                ALUMNI
-            </div>
-
-
-            <a href="add.php">
-                Add Alumni
-            </a>
-
-
-            <a
-                href="alumni.php"
-                class="active"
-            >
-                Alumni Directory
-            </a>
-
-
-            <div class="nav-section">
-                SYSTEM
-            </div>
-
-
-            <a
-                href="../../auth/logout.php"
-                class="logout-link"
-            >
-                Logout
-            </a>
-
-
-        </nav>
-
-
-    </aside>
-
+    ?>
 
 
     <!-- =====================================================
@@ -205,11 +151,9 @@ if (!$alumni) {
 
     <main class="admin-main">
 
-
         <!-- TOPBAR -->
 
         <header class="admin-topbar">
-
 
             <div>
 
@@ -226,11 +170,9 @@ if (!$alumni) {
 
             <div class="admin-user">
 
-
                 <div class="admin-avatar">
                     R
                 </div>
-
 
                 <div>
 
@@ -244,16 +186,14 @@ if (!$alumni) {
 
                 </div>
 
-
             </div>
-
 
         </header>
 
 
-
         <!-- CONTENT -->
- <section class="dashboard-content">
+
+        <section class="dashboard-content">
 
 
             <!-- =================================================
@@ -261,9 +201,7 @@ if (!$alumni) {
             ================================================== -->
 
             <div class="dashboard-panel">
-
-
-                <div
+ <div
                     style="
                         display:flex;
                         align-items:center;
@@ -272,11 +210,7 @@ if (!$alumni) {
                     "
                 >
 
-
-                    <?php if (
-                        !empty($alumni["profile_photo"])
-                    ): ?>
-
+                    <?php if (!empty($alumni["profile_photo"])): ?>
 
                         <img
                             src="../../uploads/<?= e($alumni["profile_photo"]) ?>"
@@ -289,9 +223,7 @@ if (!$alumni) {
                             "
                         >
 
-
                     <?php else: ?>
-
 
                         <div
                             style="
@@ -319,7 +251,6 @@ if (!$alumni) {
 
                         </div>
 
-
                     <?php endif; ?>
 
 
@@ -343,7 +274,7 @@ if (!$alumni) {
                             </strong>
 
                             <?= e(
-                                $alumni["alumni_id_number"]
+                                $alumni["college_id_number"]
                             ) ?>
 
                         </p>
@@ -361,15 +292,11 @@ if (!$alumni) {
 
                         </p>
 
-
                     </div>
-
 
                 </div>
 
-
             </div>
-
 
 
             <!-- =================================================
@@ -377,7 +304,6 @@ if (!$alumni) {
             ================================================== -->
 
             <div class="dashboard-panel">
-
 
                 <div class="panel-header">
 
@@ -411,7 +337,8 @@ if (!$alumni) {
 
 
                     <div class="form-field">
- <label>
+
+                        <label>
                             Last Name
                         </label>
 
@@ -425,8 +352,7 @@ if (!$alumni) {
 
 
                     <div class="form-field">
-
-                        <label>
+<label>
                             Gender
                         </label>
 
@@ -501,9 +427,7 @@ if (!$alumni) {
 
                 </div>
 
-
             </div>
-
 
 
             <!-- =================================================
@@ -511,7 +435,6 @@ if (!$alumni) {
             ================================================== -->
 
             <div class="dashboard-panel">
-
 
                 <div class="panel-header">
 
@@ -561,9 +484,7 @@ if (!$alumni) {
 
                 </div>
 
-
             </div>
-
 
 
             <!-- =================================================
@@ -571,7 +492,6 @@ if (!$alumni) {
             ================================================== -->
 
             <div class="dashboard-panel">
-
 
                 <div class="panel-header">
 
@@ -586,23 +506,21 @@ if (!$alumni) {
                 </div>
 
 
-                <?php if (
-                    !empty($alumni["bio"])
-                ): ?>
-
+                <?php if (!empty($alumni["bio"])): ?>
 
                     <p>
+
                         <?= nl2br(
                             e($alumni["bio"])
                         ) ?>
-                    </p>
- <?php else: ?>
 
+                    </p>
+
+                <?php else: ?>
 
                     <p>
                         No biography provided.
                     </p>
-
 
                 <?php endif; ?>
 
@@ -610,15 +528,12 @@ if (!$alumni) {
             </div>
 
 
-
             <!-- =================================================
                  ACCOUNT INFORMATION
             ================================================== -->
 
             <div class="dashboard-panel">
-
-
-                <div class="panel-header">
+ <div class="panel-header">
 
                     <div>
 
@@ -666,9 +581,7 @@ if (!$alumni) {
 
                 </div>
 
-
             </div>
-
 
 
             <!-- =================================================
@@ -677,7 +590,6 @@ if (!$alumni) {
 
             <div class="form-actions">
 
-
                 <a
                     href="alumni.php"
                     class="secondary-button"
@@ -685,18 +597,14 @@ if (!$alumni) {
                     ← Back to Alumni Directory
                 </a>
 
-
             </div>
 
 
         </section>
 
-
     </main>
 
-
 </div>
-
 
 </body>
 

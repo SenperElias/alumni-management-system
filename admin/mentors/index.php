@@ -50,7 +50,7 @@ $sql = "
 
         a.first_name,
         a.last_name,
-        a.alumni_id_number,
+        a.college_id_number,
         a.phone,
 
         u.email
@@ -545,7 +545,7 @@ $mentors = $stmt->get_result();
                                         <td>
 
                                             <?= e(
-                                                $mentor["alumni_id_number"]
+                                                $mentor["college_id_number"]
                                                 ?: $mentor["alumni_id"]
                                             ) ?>
 

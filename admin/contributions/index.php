@@ -52,7 +52,7 @@ $sql = "
 
         a.first_name,
         a.last_name,
-        a.alumni_id_number
+        a.college_id_number
 
     FROM contributions c
 
@@ -723,7 +723,7 @@ while (
 
                                             <?= e(
                                                 $row[
-                                                    "alumni_id_number"
+                                                    "college_id_number"
                                                 ]
                                             ) ?>
 

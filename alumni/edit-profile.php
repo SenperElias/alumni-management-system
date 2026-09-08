@@ -61,6 +61,7 @@ $stmt->close();
 */
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
+    verify_csrf_token();
 
     $phone = trim($_POST["phone"] ?? "");
     $address = trim($_POST["address"] ?? "");
@@ -419,7 +420,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 enctype="multipart/form-data"
                 class="profile-edit-form"
             >
-
+<?= csrf_field() ?>
 
                 <!-- PROFILE PHOTO -->
 
@@ -557,7 +558,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                             </span>
 
                             <strong>
-                                <?= e($alumni["alumni_id_number"]) ?>
+                                <?= e($alumni["college_id_number"]) ?>
                             </strong>
 
                         </div>

@@ -295,12 +295,12 @@ if (!$registration) {
                     <div class="form-field">
 
                         <label>
-                            Alumni ID Number
+                            College ID Number
                         </label>
 
                         <input
                             type="text"
-                            value="<?= e($registration["alumni_id_number"]) ?>"
+                            value="<?= e($registration["college_id_number"]) ?>"
                             readonly
                         >
 
@@ -545,25 +545,48 @@ if (!$registration) {
                     </div>
 
 
-                    <div class="form-actions">
- <a
-                            href="approve.php?id=<?= $registration_id ?>"
-                            class="primary-button"
-                            onclick="return confirm('Are you sure you want to approve this registration?');"
-                        >
-                            Approve Registration
-                        </a>
+                   <div class="form-actions">
 
+    <!-- Approve -->
+    <form
+        method="POST"
+        action="approve.php"
+        style="display:inline;"
+        onsubmit="return confirm('Are you sure you want to approve this registration?');"
+    >
+        <?= csrf_field() ?>
 
-                        <a
-                            href="reject.php?id=<?= $registration_id ?>"
-                            class="secondary-button"
-                            onclick="return confirm('Are you sure you want to reject this registration?');"
-                        >
-                            Reject Registration
-                        </a>
+        <input
+            type="hidden"
+            name="registration_id"
+            value="<?= $registration_id ?>"
+        >
 
-                    </div>
+        <button
+            type="submit"
+            class="primary-button"
+        >
+            Approve Registration
+        </button>
+    </form>
+
+    <!-- Reject -->
+  <a href="reject.php?id=<?= $registration_id ?>" class="secondary-button">
+
+        Reject Registration
+        </a>
+        <?= csrf_field() ?>
+
+        <input
+            type="hidden"
+            name="registration_id"
+            value="<?= $registration_id ?>"
+        >
+
+        
+    </form>
+
+</div>
 
                 </div>
 

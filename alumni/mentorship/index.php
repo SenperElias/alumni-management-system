@@ -76,7 +76,7 @@ $sql = "
         mp.status,
         a.first_name,
         a.last_name,
-        a.alumni_id_number,
+        a.college_id_number,
         a.profile_photo
     FROM mentor_profiles mp
     INNER JOIN alumni a

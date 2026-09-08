@@ -179,11 +179,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             <div>
 
                 <h1>
-                    Settings
+                   Account Settings
                 </h1>
 
                 <p>
-                    Manage your administrator account and system information.
+                    Manage your Alumni President account information and password.
                 </p>
 
             </div>
@@ -222,11 +222,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     <div>
 
                         <h2>
-                            Admin Profile
+                            Alumni President Profile
                         </h2>
 
                         <p>
-                            Your administrator account information.
+                            Your Alumni President account information.
                         </p>
 
                     </div>
@@ -294,7 +294,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                         </h2>
 
                         <p>
-                            Basic information about the alumni management system.
+                            Basic information about the alumni management system and instituation.
                         </p>
 
                     </div>
@@ -360,7 +360,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                         </h2>
 
                         <p>
-                            Update your administrator account password.
+                            Update your Alumni President account password.
                         </p>
 
                     </div>

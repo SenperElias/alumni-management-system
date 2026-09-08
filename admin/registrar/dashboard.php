@@ -42,15 +42,26 @@ $countResult = $conn->query("
     FROM alumni_registrations
 ");
 
-if ($countResult) {
+if (!$countResult) {
 
-    $counts = $countResult->fetch_assoc();
+    error_log(
+        "Database error in registrar/dashboard.php " .
+        "(registration counts): " .
+        $conn->error
+    );
 
-    $pendingCount = (int) ($counts["pending_count"] ?? 0);
-    $approvedCount = (int) ($counts["approved_count"] ?? 0);
-    $rejectedCount = (int) ($counts["rejected_count"] ?? 0);
-    $totalCount = (int) ($counts["total_count"] ?? 0);
+    die(
+        "Unable to load registration statistics. " .
+        "Please try again later."
+    );
 }
+
+$counts = $countResult->fetch_assoc();
+
+$pendingCount = (int) ($counts["pending_count"] ?? 0);
+$approvedCount = (int) ($counts["approved_count"] ?? 0);
+$rejectedCount = (int) ($counts["rejected_count"] ?? 0);
+$totalCount = (int) ($counts["total_count"] ?? 0);
 
 /*
 |--------------------------------------------------------------------------
@@ -102,12 +113,24 @@ $departmentSql = "
 
 $departmentResult = $conn->query($departmentSql);
 
-if ($departmentResult) {
+if (!$departmentResult) {
 
-    while ($row = $departmentResult->fetch_assoc()) {
+    error_log(
+        "Database error in registrar/dashboard.php " .
+        "(department statistics): " .
+        $conn->error
+    );
 
-        $departmentStats[] = $row;
-    }
+    die(
+        "Unable to load department statistics. " .
+        "Please try again later."
+    );
+}
+
+while ($row = $departmentResult->fetch_assoc()) {
+
+    $departmentStats[] = $row;
+
 }
 
 ?>

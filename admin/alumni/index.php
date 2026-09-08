@@ -76,7 +76,7 @@ if ($result) {
 $sql = "
     SELECT
         a.alumni_id,
-        a.alumni_id_number,
+        a.college_id_number,
         a.first_name,
         a.last_name,
         a.gender,
@@ -104,7 +104,7 @@ if ($search !== "") {
         AND (
             a.first_name LIKE ?
             OR a.last_name LIKE ?
-            OR a.alumni_id_number LIKE ?
+            OR a.college_id_number LIKE ?
         )
     ";
 
@@ -465,7 +465,7 @@ $pageTitle = "Alumni Management";
 
                                     <td>
                                         <?= e(
-                                            $alumni["alumni_id_number"]
+                                            $alumni["college_id_number"]
                                         ) ?>
                                     </td>
 

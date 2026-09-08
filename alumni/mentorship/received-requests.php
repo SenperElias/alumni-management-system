@@ -6,8 +6,7 @@ require_once "../../config/database.php";
 require_once "../../config/config.php";
 require_once "../../includes/functions.php";
 
-/*
-|--------------------------------------------------------------------------
+/*|--------------------------------------------------------------------------
 | ALUMNI ACCESS
 |--------------------------------------------------------------------------
 */
@@ -24,14 +23,14 @@ if ($_SESSION["role"] !== "alumni") {
 
 $user_id = (int) $_SESSION["user_id"];
 
-/*
-|--------------------------------------------------------------------------
+/*|--------------------------------------------------------------------------
 | GET LOGGED-IN ALUMNI ID
 |--------------------------------------------------------------------------
 */
 
 $stmt = $conn->prepare("
-    SELECT alumni_id
+    SELECT
+        alumni_id
     FROM alumni
     WHERE user_id = ?
     LIMIT 1
@@ -55,9 +54,7 @@ if (!$alumni) {
 
 $alumni_id = (int) $alumni["alumni_id"];
 
- $alumni_id = (int) $alumni["alumni_id"];
-
-/*--------------------------------------------------------------------------
+/*|--------------------------------------------------------------------------
 | CHECK IF LOGGED-IN ALUMNI IS A MENTOR
 |--------------------------------------------------------------------------
 */
@@ -84,12 +81,16 @@ $mentor = $result->fetch_assoc();
 
 $stmt->close();
 
+/*
+ * mentorship_requests.mentor_id currently stores alumni_id,
+ * so we use the mentor's alumni_id here.
+ */
+
 $mentor_profile_id = $mentor
     ? (int) $mentor["alumni_id"]
     : 0;
 
-
-/*--------------------------------------------------------------------------
+/*|--------------------------------------------------------------------------
 | HANDLE ACCEPT / REJECT
 |--------------------------------------------------------------------------
 */
@@ -111,12 +112,68 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         die("You are not an active mentor.");
     }
 
+    /*
+     * Determine new status.
+     */
+
     $new_status = ($action === "accept")
         ? "Accepted"
         : "Rejected";
 
+    /*----------------------------------------------------------------------
+    | GET THE REQUEST + MENTEE INFORMATION
+    ----------------------------------------------------------------------
+    |
+    | We need the mentee's user_id so the notification goes to
+    | the correct account.
+    |
+    */
 
     $stmt = $conn->prepare("
+        SELECT
+            mr.request_id,
+            mr.mentee_id,
+            a.user_id,
+            a.first_name,
+            a.last_name
+        FROM mentorship_requests mr
+        INNER JOIN alumni a
+            ON mr.mentee_id = a.alumni_id
+        WHERE mr.request_id = ?
+          AND mr.mentor_id = ?
+          AND LOWER(TRIM(mr.status)) = 'pending'
+        LIMIT 1
+    ");
+
+    if (!$stmt) {
+        die("Database error: " . $conn->error);
+    }
+
+    $stmt->bind_param(
+        "ii",
+        $request_id,
+        $mentor_profile_id
+    );
+
+    $stmt->execute();
+
+    $result = $stmt->get_result();
+    $mentee = $result->fetch_assoc();
+
+    $stmt->close();
+
+    if (!$mentee) {
+        die(
+            "Request not found, already responded to, " .
+            "or this request does not belong to you."
+        );
+    }
+
+    /*----------------------------------------------------------------------
+    | UPDATE REQUEST STATUS
+    ----------------------------------------------------------------------
+    */
+ $stmt = $conn->prepare("
         UPDATE mentorship_requests
         SET
             status = ?,
@@ -134,7 +191,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         "sii",
         $new_status,
         $request_id,
-        $alumni_id
+        $mentor_profile_id
     );
 
     if (!$stmt->execute()) {
@@ -142,21 +199,90 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     }
 
     if ($stmt->affected_rows === 0) {
+        $stmt->close();
+
         die(
             "No request was updated. " .
-            "Request ID: " . $request_id .
-            " | Mentor ID: " . $alumni_id
+            "The request may already have been responded to."
         );
     }
 
     $stmt->close();
 
+    /*----------------------------------------------------------------------
+    | NOTIFY MENTEE
+    ----------------------------------------------------------------------
+    */
+
+    if ($action === "accept") {
+
+        $notificationTitle = "Mentorship Request Accepted";
+
+        $notificationMessage =
+            "Your mentorship request has been accepted. " .
+            "You can now connect with your mentor.";
+
+    } else {
+
+        $notificationTitle = "Mentorship Request Rejected";
+
+        $notificationMessage =
+            "Your mentorship request has been rejected.";
+
+    }
+
+    $notificationType = "mentorship";
+
+    $notifyStmt = $conn->prepare("
+        INSERT INTO notifications
+        (
+            user_id,
+            title,
+            message,
+            type,
+            opportunity_id,
+            event_id,
+            is_read
+        )
+        VALUES
+        (
+            ?,
+            ?,
+            ?,
+            ?,
+            NULL,
+            NULL,
+            0
+        )
+    ");
+
+    if ($notifyStmt) {
+
+        $mentee_user_id = (int) $mentee["user_id"];
+
+        $notifyStmt->bind_param(
+            "isss",
+            $mentee_user_id,
+            $notificationTitle,
+            $notificationMessage,
+            $notificationType
+        );
+
+        $notifyStmt->execute();
+
+        $notifyStmt->close();
+    }
+
+/*|--------------------------------------------------------------------------
+| REDIRECT
+|--------------------------------------------------------------------------
+*/
+
     header("Location: received-requests.php");
     exit;
 }
 
-
-/*--------------------------------------------------------------------------
+/*|--------------------------------------------------------------------------
 | GET REQUESTS RECEIVED BY THIS MENTOR
 |--------------------------------------------------------------------------
 */
@@ -176,7 +302,7 @@ if ($mentor_profile_id > 0) {
             mr.responded_at,
             a.first_name,
             a.last_name,
-            a.alumni_id_number
+            a.college_id_number
         FROM mentorship_requests mr
         INNER JOIN alumni a
             ON mr.mentee_id = a.alumni_id
@@ -188,7 +314,10 @@ if ($mentor_profile_id > 0) {
         die("Database error: " . $conn->error);
     }
 
-    $stmt->bind_param("i", $mentor_profile_id);
+    $stmt->bind_param(
+        "i",
+        $mentor_profile_id
+    );
 
     $stmt->execute();
 
@@ -200,13 +329,11 @@ if ($mentor_profile_id > 0) {
 
     $stmt->close();
 }
-?>
-   
-            
-    
 
+?>
 
 <!DOCTYPE html>
+
 <html lang="en">
 
 <head>
@@ -235,8 +362,7 @@ if ($mentor_profile_id > 0) {
             margin: 40px auto;
             padding: 20px;
         }
-
-        .requests-panel {
+ .requests-panel {
             background: #ffffff;
             border: 1px solid #eeeeee;
             border-radius: 14px;
@@ -259,7 +385,8 @@ if ($mentor_profile_id > 0) {
             margin-bottom: 18px;
             background: #ffffff;
         }
-.request-card:last-child {
+
+        .request-card:last-child {
             margin-bottom: 0;
         }
 
@@ -320,7 +447,6 @@ if ($mentor_profile_id > 0) {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 15px;
-            font-size: 14px;
         }
 
         .meta-label {
@@ -402,8 +528,11 @@ if ($mentor_profile_id > 0) {
 <div class="admin-layout">
 
     <?php
+
     $currentPage = "received-requests.php";
+
     require_once __DIR__ . "/../includes/sidebar.php";
+
     ?>
 
     <main class="admin-main">
@@ -429,8 +558,7 @@ if ($mentor_profile_id > 0) {
             <div class="requests-wrapper">
 
                 <div class="requests-panel">
-
-                    <h2>
+ <h2>
                         Requests Received
                     </h2>
 
@@ -448,7 +576,8 @@ if ($mentor_profile_id > 0) {
                             </p>
 
                         </div>
-<?php elseif (count($received_requests) === 0): ?>
+
+                    <?php elseif (count($received_requests) === 0): ?>
 
                         <div class="no-requests">
 
@@ -475,13 +604,9 @@ if ($mentor_profile_id > 0) {
                             $statusClass = "status-pending";
 
                             if ($status === "accepted") {
-
                                 $statusClass = "status-accepted";
-
                             } elseif ($status === "rejected") {
-
                                 $statusClass = "status-rejected";
-
                             }
 
                             ?>
@@ -503,7 +628,10 @@ if ($mentor_profile_id > 0) {
                                         <div class="person-info">
 
                                             Alumni ID:
-                                            <?= e($request["alumni_id_number"]) ?>
+
+                                            <?= e(
+                                                $request["college_id_number"]
+                                            ) ?>
 
                                         </div>
 
@@ -513,7 +641,9 @@ if ($mentor_profile_id > 0) {
                                         class="status-badge <?= e($statusClass) ?>"
                                     >
 
-                                        <?= e(ucfirst($status)) ?>
+                                        <?= e(
+                                            ucfirst($status)
+                                        ) ?>
 
                                     </span>
 
@@ -552,9 +682,10 @@ if ($mentor_profile_id > 0) {
                                         </span>
 
                                         <span class="meta-value">
-
-                                            <?php if (
-                                                !empty($request["responded_at"])
+<?php if (
+                                                !empty(
+                                                    $request["responded_at"]
+                                                )
                                             ): ?>
 
                                                 <?= e(
@@ -574,7 +705,8 @@ if ($mentor_profile_id > 0) {
                                 </div>
 
                                 <?php if ($status === "pending"): ?>
-<div class="request-actions">
+
+                                    <div class="request-actions">
 
                                         <form
                                             method="POST"

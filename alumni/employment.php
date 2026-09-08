@@ -6,6 +6,12 @@ require_once "../config/database.php";
 require_once "../config/config.php";
 require_once "../includes/functions.php";
 
+/*
+|--------------------------------------------------------------------------
+| Security
+|--------------------------------------------------------------------------
+*/
+
 if (!isset($_SESSION["user_id"])) {
     header("Location: ../auth/login.php");
     exit;
@@ -16,11 +22,12 @@ if ($_SESSION["role"] !== "alumni") {
     exit;
 }
 
+requirePasswordChange();
+
 $userId = (int) $_SESSION["user_id"];
 
 $error = "";
 $success = "";
-
 
 /*
 |--------------------------------------------------------------------------
@@ -32,14 +39,9 @@ if (isset($_GET["deleted"])) {
     $success = "Employment record deleted successfully.";
 }
 
-if (isset($_GET["error"])) {
-    $error = "Unable to delete employment record.";
-}
-
-
 /*
 |--------------------------------------------------------------------------
-| Get Alumni ID
+| Get Logged-in Alumni
 |--------------------------------------------------------------------------
 */
 
@@ -50,12 +52,17 @@ $stmt = $conn->prepare(
      LIMIT 1"
 );
 
+if (!$stmt) {
+    die("Unable to load alumni profile.");
+}
+
 $stmt->bind_param("i", $userId);
 $stmt->execute();
 
 $result = $stmt->get_result();
 
 if ($result->num_rows !== 1) {
+    $stmt->close();
     die("Alumni profile not found.");
 }
 
@@ -65,7 +72,6 @@ $stmt->close();
 
 $alumniId = (int) $alumni["alumni_id"];
 
-
 /*
 |--------------------------------------------------------------------------
 | Add Employment / Education Record
@@ -74,157 +80,296 @@ $alumniId = (int) $alumni["alumni_id"];
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
-    $employmentStatus = trim($_POST["employment_status"] ?? "");
-
-    /*
-    | Employment fields
-    */
-    $companyName = trim($_POST["company_name"] ?? "");
-    $jobPosition = trim($_POST["job_position"] ?? "");
-    $workLocation = trim($_POST["Work_location"] ?? "");
-    $industry = trim($_POST["industry"] ?? "");
-    $employmentDate = trim($_POST["employment_date"] ?? "");
-    $endDate = trim($_POST["End_date"] ?? "");
-
-    /*
-    | Education fields
-    */
-    $educationInstitution = trim(
-        $_POST["education_institution"] ?? ""
-    );
-
-    $educationProgram = trim(
-        $_POST["education_program"] ?? ""
-    );
-
-    $educationLevel = trim(
-        $_POST["education_level"] ?? ""
-    );
-
-    $educationStartDate = trim(
-        $_POST["education_start_date"] ?? ""
-    );
-
-    $expectedCompletionDate = trim(
-        $_POST["expected_completion_date"] ?? ""
-    );
-
-
     /*
     |--------------------------------------------------------------------------
-    | Validation
+    | CSRF Protection
     |--------------------------------------------------------------------------
     */
 
-    if ($employmentStatus === "") {
-
-        $error = "Please select an employment status.";
-
-    } elseif (
-        in_array(
-            $employmentStatus,
-            ["employed", "self_employed"],
-            true
-        )
-        &&
-        (
-            $companyName === ""
-            || $jobPosition === ""
-            || $employmentDate === ""
-        )
-    ) {
-
-        $error =
-            "Company, job position, and employment start date are required.";
-
-    } elseif (
-        $employmentStatus === "continuing_education"
-        &&
-        (
-            $educationInstitution === ""
-            || $educationProgram === ""
-            || $educationLevel === ""
-            || $educationStartDate === ""
-        )
-    ) {
-
-        $error =
-            "Institution, program, education level, and study start date are required.";
-
+    if (!verify_csrf_token()) {
+        $error = "Invalid security token. Please try again.";
     } else {
 
         /*
         |--------------------------------------------------------------------------
-        | Verification
+        | Employment Status
         |--------------------------------------------------------------------------
         */
 
-        $verificationStatus = "pending";
+        $employmentStatus = trim(
+            $_POST["employment_status"] ?? ""
+        );
 
+        /*
+        |--------------------------------------------------------------------------
+        | Employment Fields
+        |--------------------------------------------------------------------------
+        */
+
+        $companyName = trim(
+            $_POST["company_name"] ?? ""
+        );
+
+        $jobPosition = trim(
+            $_POST["job_position"] ?? ""
+        );
+
+        $workLocation = trim(
+            $_POST["work_location"] ?? ""
+        );
+
+        $industry = trim(
+            $_POST["industry"] ?? ""
+        );
+
+        $employmentDate = trim(
+            $_POST["employment_date"] ?? ""
+        );
+
+        $endDate = trim(
+            $_POST["end_date"] ?? ""
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | Education Fields
+        |--------------------------------------------------------------------------
+        */
+
+        $educationInstitution = trim(
+            $_POST["education_institution"] ?? ""
+        );
+
+        $educationProgram = trim(
+            $_POST["education_program"] ?? ""
+        );
+
+        $educationLevel = trim(
+            $_POST["education_level"] ?? ""
+        );
+
+        $educationStartDate = trim(
+            $_POST["education_start_date"] ?? ""
+        );
+
+        $expectedCompletionDate = trim(
+            $_POST["expected_completion_date"] ?? ""
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | Validation
+        |--------------------------------------------------------------------------
+        */
+$allowedStatuses = [
+            "employed",
+            "self_employed",
+            "unemployed",
+            "continuing_education"
+        ];
+
+        if ($employmentStatus === "") {
+
+            $error = "Please select an employment status.";
+
+        } elseif (!in_array(
+            $employmentStatus,
+            $allowedStatuses,
+            true
+        )) {
+
+            $error = "Invalid employment status.";
+
+        } elseif (
+            in_array(
+                $employmentStatus,
+                ["employed", "self_employed"],
+                true
+            )
+            &&
+            (
+                $companyName === ""
+                || $jobPosition === ""
+                || $employmentDate === ""
+            )
+        ) {
+
+            $error =
+                "Company, job position, and employment start date are required.";
+
+        } elseif (
+            $employmentStatus === "continuing_education"
+            &&
+            (
+                $educationInstitution === ""
+                || $educationProgram === ""
+                || $educationLevel === ""
+                || $educationStartDate === ""
+            )
+        ) {
+
+            $error =
+                "Institution, program, education level, and study start date are required.";
+
+        } elseif (
+            in_array(
+                $employmentStatus,
+                ["employed", "self_employed"],
+                true
+            )
+            &&
+            $endDate !== ""
+            &&
+            $employmentDate !== ""
+            &&
+            $endDate < $employmentDate
+        ) {
+
+            $error =
+                "The employment end date cannot be earlier than the start date.";
+
+        } elseif (
+            $employmentStatus === "continuing_education"
+            &&
+            $expectedCompletionDate !== ""
+            &&
+            $educationStartDate !== ""
+            &&
+            $expectedCompletionDate < $educationStartDate
+        ) {
+
+            $error =
+                "The expected completion date cannot be earlier than the study start date.";
+        }
 
         /*
         |--------------------------------------------------------------------------
         | Insert Record
         |--------------------------------------------------------------------------
         */
- $stmt = $conn->prepare(
-            "INSERT INTO employment
-            (
-                alumni_id,
-                employment_status,
-                company_name,
-                job_position,
-                Work_location,
-                industry,
-                employment_date,
-                End_date,
-                education_institution,
-                education_program,
-                education_level,
-                expected_completion_date,
-                Verification_status,
-                Verification_notes,
-                Updated_by
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?)"
-        );
 
+        if ($error === "") {
 
-        $stmt->bind_param(
-            "issssssssssssi",
-            $alumniId,
-            $employmentStatus,
-            $companyName,
-            $jobPosition,
-            $workLocation,
-            $industry,
-            $employmentDate,
-            $endDate,
-            $educationInstitution,
-            $educationProgram,
-            $educationLevel,
-            $expectedCompletionDate,
-            $verificationStatus,
-            $userId
-        );
+            /*
+            |--------------------------------------------------------------------------
+            | Verification
+            |--------------------------------------------------------------------------
+            */
 
+            $verificationStatus = "pending";
 
-        if ($stmt->execute()) {
+            /*
+            |--------------------------------------------------------------------------
+            | For Continuing Education
+            |
+            | The database does not have a separate education_start_date
+            | column, so employment_date stores the education start date.
+            |--------------------------------------------------------------------------
+            */
 
-            $success =
-                "Employment information submitted successfully.";
+            if ($employmentStatus === "continuing_education") {
 
-        } else {
+                $employmentDate = $educationStartDate;
 
-            $error =
-                "Unable to save employment information.";
+                $companyName = "";
+                $jobPosition = "";
+                $workLocation = "";
+                $industry = "";
+                $endDate = "";
+            }
 
+            /*
+            |--------------------------------------------------------------------------
+            | For Unemployed
+            |--------------------------------------------------------------------------
+            */
+
+            if ($employmentStatus === "unemployed") {
+
+                $companyName = "";
+                $jobPosition = "";
+                $workLocation = "";
+                $industry = "";
+                $employmentDate = "";
+                $endDate = "";
+
+                $educationInstitution = "";
+                $educationProgram = "";
+                $educationLevel = "";
+                $expectedCompletionDate = "";
+            }
+ /*
+            |--------------------------------------------------------------------------
+            | Insert Into Database
+            |--------------------------------------------------------------------------
+            */
+
+            $insert = $conn->prepare(
+                "INSERT INTO employment
+                (
+                    alumni_id,
+                    employment_status,
+                    company_name,
+                    job_position,
+                    work_location,
+                    industry,
+                    education_institution,
+                    education_program,
+                    education_level,
+                    expected_completion_date,
+                    employment_date,
+                    end_date,
+                    verification_status,
+                    verification_notes,
+                    updated_by
+                )
+                VALUES
+                (
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?
+                )"
+            );
+
+            if (!$insert) {
+
+                $error =
+                    "Unable to prepare the employment record.";
+
+            } else {
+
+                $insert->bind_param(
+                    "issssssssssssi",
+                    $alumniId,
+                    $employmentStatus,
+                    $companyName,
+                    $jobPosition,
+                    $workLocation,
+                    $industry,
+                    $educationInstitution,
+                    $educationProgram,
+                    $educationLevel,
+                    $expectedCompletionDate,
+                    $employmentDate,
+                    $endDate,
+                    $verificationStatus,
+                    $userId
+                );
+
+                if ($insert->execute()) {
+
+                    $success =
+                        "Employment information submitted successfully.";
+
+                } else {
+
+                    $error =
+                        "Unable to save employment information.";
+                }
+
+                $insert->close();
+            }
         }
-
-        $stmt->close();
     }
 }
-
 
 /*
 |--------------------------------------------------------------------------
@@ -238,16 +383,16 @@ $stmt = $conn->prepare(
         employment_status,
         company_name,
         job_position,
-        Work_location,
+        work_location,
         industry,
-        employment_date,
-        End_date,
         education_institution,
         education_program,
         education_level,
         expected_completion_date,
-        Verification_status,
-        Verification_notes,
+        employment_date,
+        end_date,
+        verification_status,
+        verification_notes,
         created_at,
         updated_at
      FROM employment
@@ -261,6 +406,10 @@ $stmt = $conn->prepare(
         END DESC"
 );
 
+if (!$stmt) {
+    die("Unable to load employment records.");
+}
+
 $stmt->bind_param("i", $alumniId);
 $stmt->execute();
 
@@ -269,7 +418,6 @@ $employmentResult = $stmt->get_result();
 ?>
 
 <!DOCTYPE html>
-
 <html lang="en">
 
 <head>
@@ -293,12 +441,9 @@ $employmentResult = $stmt->get_result();
 
 </head>
 
-
 <body class="admin-body">
 
-
 <div class="admin-layout">
-
 
     <!-- SIDEBAR -->
 
@@ -310,11 +455,9 @@ $employmentResult = $stmt->get_result();
 
     ?>
 
-
     <!-- MAIN -->
 
     <main class="admin-main">
-
 
         <header class="admin-topbar">
 
@@ -336,7 +479,8 @@ $employmentResult = $stmt->get_result();
         <section class="dashboard-content">
 
 
-            <?php if ($error !== ""): ?>
+            <!-- ERROR -->
+ <?php if ($error !== ""): ?>
 
                 <div class="error-message">
                     <?= e($error) ?>
@@ -344,6 +488,8 @@ $employmentResult = $stmt->get_result();
 
             <?php endif; ?>
 
+
+            <!-- SUCCESS -->
 
             <?php if ($success !== ""): ?>
 
@@ -358,7 +504,6 @@ $employmentResult = $stmt->get_result();
 
             <div class="dashboard-panel">
 
-
                 <div class="panel-header">
 
                     <div>
@@ -371,23 +516,30 @@ $employmentResult = $stmt->get_result();
                             Add your current employment, previous employment,
                             unemployment status, or continuing education.
                         </p>
- </div>
+
+                    </div>
 
                 </div>
 
 
-                <form method="POST">
+                <form
+                    method="POST"
+                    action="employment.php"
+                >
 
+                    <?= csrf_field() ?>
+
+
+                    <!-- STATUS -->
 
                     <div class="form-grid">
-
-
-                        <!-- STATUS -->
 
                         <div class="form-group">
 
                             <label for="employment_status">
+
                                 Employment Status *
+
                             </label>
 
                             <select
@@ -420,7 +572,6 @@ $employmentResult = $stmt->get_result();
 
                         </div>
 
-
                     </div>
 
 
@@ -432,17 +583,19 @@ $employmentResult = $stmt->get_result();
                         style="display:none;"
                     >
 
-
                         <div class="form-group">
 
                             <label for="company_name">
+
                                 Company / Organization *
+
                             </label>
 
                             <input
                                 type="text"
                                 id="company_name"
                                 name="company_name"
+                                maxlength="255"
                             >
 
                         </div>
@@ -451,13 +604,16 @@ $employmentResult = $stmt->get_result();
                         <div class="form-group">
 
                             <label for="job_position">
+
                                 Job Position *
+
                             </label>
 
                             <input
                                 type="text"
                                 id="job_position"
                                 name="job_position"
+                                maxlength="255"
                             >
 
                         </div>
@@ -465,14 +621,16 @@ $employmentResult = $stmt->get_result();
 
                         <div class="form-group">
 
-                            <label for="Work_location">
-                                Work Location
-                            </label>
+                            <label for="work_location">
 
-                            <input
+                                Work Location
+
+                            </label>
+<input
                                 type="text"
-                                id="Work_location"
-                                name="Work_location"
+                                id="work_location"
+                                name="work_location"
+                                maxlength="255"
                                 placeholder="e.g. Addis Ababa"
                             >
 
@@ -482,13 +640,16 @@ $employmentResult = $stmt->get_result();
                         <div class="form-group">
 
                             <label for="industry">
+
                                 Industry
+
                             </label>
 
                             <input
                                 type="text"
                                 id="industry"
                                 name="industry"
+                                maxlength="255"
                                 placeholder="e.g. Information Technology"
                             >
 
@@ -498,7 +659,9 @@ $employmentResult = $stmt->get_result();
                         <div class="form-group">
 
                             <label for="employment_date">
+
                                 Employment Start Date *
+
                             </label>
 
                             <input
@@ -511,14 +674,17 @@ $employmentResult = $stmt->get_result();
 
 
                         <div class="form-group">
-                          <label for="End_date">
+
+                            <label for="end_date">
+
                                 End Date
+
                             </label>
 
                             <input
                                 type="date"
-                                id="End_date"
-                                name="End_date"
+                                id="end_date"
+                                name="end_date"
                             >
 
                             <small>
@@ -526,7 +692,6 @@ $employmentResult = $stmt->get_result();
                             </small>
 
                         </div>
-
 
                     </div>
 
@@ -539,17 +704,19 @@ $employmentResult = $stmt->get_result();
                         style="display:none;"
                     >
 
-
                         <div class="form-group">
 
                             <label for="education_institution">
+
                                 Institution *
+
                             </label>
 
                             <input
                                 type="text"
                                 id="education_institution"
                                 name="education_institution"
+                                maxlength="255"
                                 placeholder="e.g. Addis Ababa University"
                             >
 
@@ -559,13 +726,16 @@ $employmentResult = $stmt->get_result();
                         <div class="form-group">
 
                             <label for="education_program">
+
                                 Program / Field of Study *
+
                             </label>
 
                             <input
                                 type="text"
                                 id="education_program"
                                 name="education_program"
+                                maxlength="255"
                                 placeholder="e.g. Computer Science"
                             >
 
@@ -575,7 +745,9 @@ $employmentResult = $stmt->get_result();
                         <div class="form-group">
 
                             <label for="education_level">
+
                                 Education Level *
+
                             </label>
 
                             <select
@@ -619,7 +791,9 @@ $employmentResult = $stmt->get_result();
                         <div class="form-group">
 
                             <label for="education_start_date">
+
                                 Study Start Date *
+
                             </label>
 
                             <input
@@ -634,9 +808,12 @@ $employmentResult = $stmt->get_result();
                         <div class="form-group">
 
                             <label for="expected_completion_date">
+
                                 Expected Completion Date
+
                             </label>
-                             <input
+
+                            <input
                                 type="date"
                                 id="expected_completion_date"
                                 name="expected_completion_date"
@@ -644,9 +821,10 @@ $employmentResult = $stmt->get_result();
 
                         </div>
 
-
                     </div>
 
+
+                    <!-- BUTTON -->
 
                     <div class="profile-form-actions">
 
@@ -654,14 +832,14 @@ $employmentResult = $stmt->get_result();
                             type="submit"
                             class="primary-button"
                         >
+
                             Submit Information
+
                         </button>
 
                     </div>
 
-
                 </form>
-
 
             </div>
 
@@ -669,7 +847,6 @@ $employmentResult = $stmt->get_result();
             <!-- HISTORY -->
 
             <div class="dashboard-panel">
-
 
                 <div class="panel-header">
 
@@ -690,29 +867,26 @@ $employmentResult = $stmt->get_result();
 
                 <?php if ($employmentResult->num_rows > 0): ?>
 
-
                     <div class="employment-list">
-
 
                         <?php while (
                             $job = $employmentResult->fetch_assoc()
                         ): ?>
 
-
                             <?php
 
-                            $recordStatus =
-                                strtolower(
-                                    trim(
-                                        $job["employment_status"] ?? ""
-                                    )
-                                );
+                            $recordStatus = strtolower(
+                                trim(
+                                    $job["employment_status"] ?? ""
+                                )
+                            );
 
-                            $verificationStatus =
-                                strtolower(
-                                    $job["Verification_status"]
+                            $verificationStatus = strtolower(
+                                trim(
+                                    $job["verification_status"]
                                     ?? "pending"
-                                );
+                                )
+                            );
 
                             ?>
 
@@ -724,29 +898,28 @@ $employmentResult = $stmt->get_result();
 
                                 <div class="employment-card-header">
 
-
                                     <div>
-
 
                                         <?php if (
                                             $recordStatus ===
                                             "continuing_education"
                                         ): ?>
 
-
                                             <h3>
-                                                <?= e(
+ <?= e(
                                                     $job["education_program"]
                                                     ?: "Continuing Education"
                                                 ) ?>
+
                                             </h3>
 
-
                                             <strong>
+
                                                 <?= e(
                                                     $job["education_institution"]
                                                     ?: "Institution not provided"
                                                 ) ?>
+
                                             </strong>
 
 
@@ -755,11 +928,9 @@ $employmentResult = $stmt->get_result();
                                             "unemployed"
                                         ): ?>
 
-
                                             <h3>
                                                 Unemployed
                                             </h3>
-
 
                                             <strong>
                                                 Employment Status
@@ -768,25 +939,25 @@ $employmentResult = $stmt->get_result();
 
                                         <?php else: ?>
 
-
                                             <h3>
-                                               <?= e(
+
+                                                <?= e(
                                                     $job["job_position"]
                                                     ?: "Position not provided"
                                                 ) ?>
+
                                             </h3>
 
-
                                             <strong>
+
                                                 <?= e(
                                                     $job["company_name"]
                                                     ?: "Organization not provided"
                                                 ) ?>
+
                                             </strong>
 
-
                                         <?php endif; ?>
-
 
                                     </div>
 
@@ -804,7 +975,6 @@ $employmentResult = $stmt->get_result();
 
                                     </span>
 
-
                                 </div>
 
 
@@ -820,7 +990,6 @@ $employmentResult = $stmt->get_result();
 
 
                                         <!-- EDUCATION RECORD -->
-
 
                                         <div>
 
@@ -842,13 +1011,12 @@ $employmentResult = $stmt->get_result();
                                             </span>
 
                                             <strong>
+
                                                 <?= e(
-                                                    $job[
-                                                        "education_institution"
-                                                    ]
+                                                    $job["education_institution"]
                                                     ?: "Not provided"
                                                 ) ?>
-                                            </strong>
+ </strong>
 
                                         </div>
 
@@ -860,12 +1028,12 @@ $employmentResult = $stmt->get_result();
                                             </span>
 
                                             <strong>
+
                                                 <?= e(
-                                                    $job[
-                                                        "education_program"
-                                                    ]
+                                                    $job["education_program"]
                                                     ?: "Not provided"
                                                 ) ?>
+
                                             </strong>
 
                                         </div>
@@ -876,13 +1044,14 @@ $employmentResult = $stmt->get_result();
                                             <span>
                                                 Education Level
                                             </span>
-                                             <strong>
+
+                                            <strong>
+
                                                 <?= e(
-                                                    $job[
-                                                        "education_level"
-                                                    ]
+                                                    $job["education_level"]
                                                     ?: "Not provided"
                                                 ) ?>
+
                                             </strong>
 
                                         </div>
@@ -895,12 +1064,12 @@ $employmentResult = $stmt->get_result();
                                             </span>
 
                                             <strong>
+
                                                 <?= e(
-                                                    $job[
-                                                        "employment_date"
-                                                    ]
+                                                    $job["employment_date"]
                                                     ?: "Not provided"
                                                 ) ?>
+
                                             </strong>
 
                                         </div>
@@ -947,7 +1116,6 @@ $employmentResult = $stmt->get_result();
 
                                         <!-- UNEMPLOYED RECORD -->
 
-
                                         <div>
 
                                             <span>
@@ -962,15 +1130,16 @@ $employmentResult = $stmt->get_result();
 
 
                                         <div>
-
-                                            <span>
+ <span>
                                                 Record Date
                                             </span>
 
                                             <strong>
+
                                                 <?= e(
                                                     $job["created_at"]
                                                 ) ?>
+
                                             </strong>
 
                                         </div>
@@ -981,13 +1150,14 @@ $employmentResult = $stmt->get_result();
 
                                         <!-- EMPLOYMENT RECORD -->
 
-
                                         <div>
- <span>
+
+                                            <span>
                                                 Status
                                             </span>
 
                                             <strong>
+
                                                 <?= e(
                                                     ucwords(
                                                         str_replace(
@@ -997,6 +1167,7 @@ $employmentResult = $stmt->get_result();
                                                         )
                                                     )
                                                 ) ?>
+
                                             </strong>
 
                                         </div>
@@ -1009,10 +1180,12 @@ $employmentResult = $stmt->get_result();
                                             </span>
 
                                             <strong>
+
                                                 <?= e(
-                                                    $job["Work_location"]
+                                                    $job["work_location"]
                                                     ?: "Not provided"
                                                 ) ?>
+
                                             </strong>
 
                                         </div>
@@ -1025,10 +1198,12 @@ $employmentResult = $stmt->get_result();
                                             </span>
 
                                             <strong>
+
                                                 <?= e(
                                                     $job["industry"]
                                                     ?: "Not provided"
                                                 ) ?>
+
                                             </strong>
 
                                         </div>
@@ -1041,10 +1216,12 @@ $employmentResult = $stmt->get_result();
                                             </span>
 
                                             <strong>
+
                                                 <?= e(
                                                     $job["employment_date"]
                                                     ?: "Not provided"
                                                 ) ?>
+
                                             </strong>
 
                                         </div>
@@ -1060,12 +1237,11 @@ $employmentResult = $stmt->get_result();
 
                                                 <?php if (
                                                     !empty(
-                                                        $job["End_date"]
+                                                        $job["end_date"]
                                                     )
                                                 ): ?>
-
-                                                    <?= e(
-                                                        $job["End_date"]
+<?= e(
+                                                        $job["end_date"]
                                                     ) ?>
 
                                                 <?php else: ?>
@@ -1081,17 +1257,16 @@ $employmentResult = $stmt->get_result();
 
                                     <?php endif; ?>
 
-
                                 </div>
 
 
                                 <!-- VERIFICATION NOTES -->
-                                  <?php if (
+
+                                <?php if (
                                     !empty(
-                                        $job["Verification_notes"]
+                                        $job["verification_notes"]
                                     )
                                 ): ?>
-
 
                                     <div class="verification-notes">
 
@@ -1100,13 +1275,10 @@ $employmentResult = $stmt->get_result();
                                         </strong>
 
                                         <?= e(
-                                            $job[
-                                                "Verification_notes"
-                                            ]
+                                            $job["verification_notes"]
                                         ) ?>
 
                                     </div>
-
 
                                 <?php endif; ?>
 
@@ -1115,32 +1287,43 @@ $employmentResult = $stmt->get_result();
 
                                 <div class="employment-actions">
 
-
                                     <a
                                         href="edit-employment.php?id=<?= (int) $job["employment_id"] ?>"
                                         class="secondary-button"
                                     >
+
                                         Edit
+
                                     </a>
 
 
-                                    <a
-                                        href="delete-employment.php?id=<?= (int) $job["employment_id"] ?>"
-                                        class="danger-button"
-                                        onclick="return confirm('Are you sure you want to delete this record?');"
-                                    >
-                                        Delete
-                                    </a>
+                                    <form
+    method="POST"
+    action="delete-employment.php"
+    style="display:inline;"
+    onsubmit="return confirm('Are you sure you want to delete this record?');"
+>
+    <?= csrf_field() ?>
 
+    <input
+        type="hidden"
+        name="employment_id"
+        value="<?= (int) $job["employment_id"] ?>"
+    >
 
+    <button
+        type="submit"
+        class="danger-button"
+    >
+        Delete
+    </button>
+</form>
                                 </div>
 
 
                             </div>
 
-
                         <?php endwhile; ?>
-
 
                     </div>
 
@@ -1171,12 +1354,9 @@ $employmentResult = $stmt->get_result();
 
             </div>
 
-
         </section>
 
-
     </main>
-
 
 </div>
 
@@ -1185,60 +1365,69 @@ $employmentResult = $stmt->get_result();
 
 <script>
 
-document.addEventListener("DOMContentLoaded", function () {
+document.addEventListener(
+    "DOMContentLoaded",
+    function () {
 
-    const statusSelect =
-        document.getElementById("employment_status");
+        const statusSelect =
+            document.getElementById(
+                "employment_status"
+            );
 
-    const employmentFields =
-        document.getElementById("employment-fields");
+        const employmentFields =
+            document.getElementById(
+                "employment-fields"
+            );
 
-    const educationFields =
-        document.getElementById("education-fields");
-
-
-    function updateFields() {
-
-        const status =
-            statusSelect.value;
-
-
-        employmentFields.style.display = "none";
-
-        educationFields.style.display = "none";
+        const educationFields =
+            document.getElementById(
+                "education-fields"
+            );
 
 
-        if (
-            status === "employed"
-            ||
-            status === "self_employed"
-        ) {
+        function updateFields() {
 
-            employmentFields.style.display = "grid";
+            const status =
+                statusSelect.value;
 
+            employmentFields.style.display =
+                "none";
+
+            educationFields.style.display =
+                "none";
+
+
+            if (
+                status === "employed"
+                ||
+                status === "self_employed"
+            ) {
+
+                employmentFields.style.display =
+                    "grid";
+            }
+
+
+            if (
+                status ===
+                "continuing_education"
+            ) {
+ educationFields.style.display =
+                    "grid";
+            }
         }
 
 
-        if (
-            status === "continuing_education"
-        ) {
+        statusSelect.addEventListener(
+            "change",
+            updateFields
+        );
 
-            educationFields.style.display = "grid";
 
-        }
+        updateFields();
 
     }
-
-
-    statusSelect.addEventListener(
-        "change",
-        updateFields
-    );
-
-
-    updateFields();
-
-});
+);
 
 </script>
 

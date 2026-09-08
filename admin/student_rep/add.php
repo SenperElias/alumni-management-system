@@ -6,12 +6,18 @@ require_once "../../config/database.php";
 require_once "../../config/config.php";
 require_once "../../includes/functions.php";
 
+/*
+|--------------------------------------------------------------------------
+| Authorization
+|--------------------------------------------------------------------------
+*/
+
 if (!isset($_SESSION["user_id"])) {
     header("Location: ../../auth/login.php");
     exit;
 }
 
-if ($_SESSION["role"] !== "registrar") {
+if ($_SESSION["role"] !== "student_rep") {
     header("Location: ../../index.php");
     exit;
 }
@@ -63,7 +69,6 @@ $result = $conn->query("
 ");
 
 if ($result) {
-
     while ($row = $result->fetch_assoc()) {
         $departments[] = $row;
     }
@@ -77,12 +82,31 @@ if ($result) {
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
+    /*
+    |--------------------------------------------------------------------------
+    | CSRF Protection
+    |--------------------------------------------------------------------------
+    */
+
+    if (!verify_csrf_token($_POST["csrf_token"] ?? "")) {
+
+        $error =
+            "Invalid security token. Please refresh the page and try again.";
+
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Get Form Values
+    |--------------------------------------------------------------------------
+    */
+
     $email = trim($_POST["email"] ?? "");
 
     $password = $_POST["password"] ?? "";
 
     $alumniIdNumber = trim(
-        $_POST["alumni_id_number"] ?? ""
+        $_POST["college_id_number"] ?? ""
     );
 
     $firstName = trim(
@@ -117,49 +141,86 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $_POST["bio"] ?? ""
     );
 
-
     /*
     |--------------------------------------------------------------------------
     | Validation
     |--------------------------------------------------------------------------
     */
 
-    if (
-        $email === "" ||
-        $password === "" ||
-        $alumniIdNumber === "" ||
-        $firstName === "" ||
-        $lastName === "" ||
-        $gender === "" ||
-        $departmentId === "" ||
-        $graduationYear === ""
-    ) {
+    if ($error === "") {
 
-        $error = "Please fill in all required fields.";
+        if (
+            $email === "" ||
+            $password === "" ||
+            $alumniIdNumber === "" ||
+            $firstName === "" ||
+            $lastName === "" ||
+            $gender === "" ||
+            $departmentId === "" ||
+            $graduationYear === ""
+        ) {
 
-    } elseif (
-        !filter_var(
-            $email,
-            FILTER_VALIDATE_EMAIL
-        )
-    ) {
+            $error =
+                "Please fill in all required fields.";
 
-        $error = "Please enter a valid email address.";
+        } elseif (
+            !filter_var(
+                $email,
+                FILTER_VALIDATE_EMAIL
+            )
+        ) {
 
-    } elseif (
-        strlen($password) < 8
-    ) {
+            $error =
+                "Please enter a valid email address.";
 
-        $error =
-            "Password must contain at least 8 characters.";
+        } elseif (
+            strlen($password) < 8
+        ) {
 
-    } else {
+            $error =
+                "Password must contain at least 8 characters.";
+ } elseif (
+            !in_array(
+                $gender,
+                ["Male", "Female"],
+                true
+            )
+        ) {
 
-        /*
-        |--------------------------------------------------------------------------
-        | Check Existing Email
-        |--------------------------------------------------------------------------
-        */
+            $error =
+                "Please select a valid gender.";
+
+        } elseif (
+            !filter_var(
+                $departmentId,
+                FILTER_VALIDATE_INT
+            )
+        ) {
+
+            $error =
+                "Please select a valid department.";
+
+        } elseif (
+            !filter_var(
+                $graduationYear,
+                FILTER_VALIDATE_INT
+            ) ||
+            (int)$graduationYear < 1900 ||
+            (int)$graduationYear > 2100
+        ) {
+
+            $error =
+                "Please enter a valid graduation year.";
+        }
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Check Existing Active Email
+    |--------------------------------------------------------------------------
+    */
+
+    if ($error === "") {
 
         $check = $conn->prepare("
             SELECT user_id
@@ -171,8 +232,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         if (!$check) {
 
             $error =
-                "Database error: " .
-                $conn->error;
+                "Unable to validate the registration.";
 
         } else {
 
@@ -194,214 +254,276 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             $check->close();
         }
- /*
-        |--------------------------------------------------------------------------
-        | Check Alumni ID
-        |--------------------------------------------------------------------------
-        */
+    }
 
-        if ($error === "") {
+    /*
+    |--------------------------------------------------------------------------
+    | Check Existing Alumni ID
+    |--------------------------------------------------------------------------
+    */
 
-            $checkId = $conn->prepare("
-                SELECT alumni_id
-                FROM alumni
-                WHERE alumni_id_number = ?
-                LIMIT 1
-            ");
+    if ($error === "") {
 
-            if (!$checkId) {
+        $checkId = $conn->prepare("
+            SELECT alumni_id
+            FROM alumni
+            WHERE college_id_number = ?
+            LIMIT 1
+        ");
+
+        if (!$checkId) {
+
+            $error =
+                "Unable to validate the Alumni ID.";
+
+        } else {
+
+            $checkId->bind_param(
+                "s",
+                $alumniIdNumber
+            );
+
+            $checkId->execute();
+
+            $existingId =
+                $checkId->get_result();
+
+            if ($existingId->num_rows > 0) {
 
                 $error =
-                    "Database error: " .
-                    $conn->error;
-
-            } else {
-
-                $checkId->bind_param(
-                    "s",
-                    $alumniIdNumber
-                );
-
-                $checkId->execute();
-
-                $existingId =
-                    $checkId->get_result();
-
-                if ($existingId->num_rows > 0) {
-
-                    $error =
-                        "This Alumni ID already exists.";
-                }
-
-                $checkId->close();
+                    "This Alumni ID already exists.";
             }
+
+            $checkId->close();
         }
+    }
 
+    /*
+    |--------------------------------------------------------------------------
+    | Check Pending Registration Email
+    |--------------------------------------------------------------------------
+    */
 
-        /*
-        |--------------------------------------------------------------------------
-        | Profile Photo Upload
-        |--------------------------------------------------------------------------
-        */
+    if ($error === "") {
 
-        if (
-            $error === "" &&
-            isset($_FILES["profile_photo"]) &&
-            $_FILES["profile_photo"]["error"] !== UPLOAD_ERR_NO_FILE
-        ) {
+        $pendingEmail = $conn->prepare("
+            SELECT registration_id
+            FROM alumni_registrations
+            WHERE email = ?
+            AND status = 'pending'
+            LIMIT 1
+        ");
+
+        if (!$pendingEmail) {
+
+            $error =
+                "Unable to validate the registration.";
+
+        } else {
+
+            $pendingEmail->bind_param(
+                "s",
+                $email
+            );
+
+            $pendingEmail->execute();
+
+            $pendingEmailResult =
+                $pendingEmail->get_result();
 
             if (
-                $_FILES["profile_photo"]["error"] !==
-                UPLOAD_ERR_OK
+                $pendingEmailResult->num_rows > 0
             ) {
 
                 $error =
-                    "There was a problem uploading the profile photo.";
+                    "A pending registration already exists for this email.";
+            }
+
+            $pendingEmail->close();
+        }
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Check Pending Registration Alumni ID
+    |--------------------------------------------------------------------------
+    */
+
+    if ($error === "") {
+
+        $pendingId = $conn->prepare("
+            SELECT registration_id
+            FROM alumni_registrations
+            WHERE college_id_number = ?
+            AND status = 'pending'
+            LIMIT 1
+        ");
+
+        if (!$pendingId) {
+$error =
+                "Unable to validate the Alumni ID.";
+
+        } else {
+
+            $pendingId->bind_param(
+                "s",
+                $alumniIdNumber
+            );
+
+            $pendingId->execute();
+
+            $pendingIdResult =
+                $pendingId->get_result();
+
+            if (
+                $pendingIdResult->num_rows > 0
+            ) {
+
+                $error =
+                    "A pending registration already exists for this Alumni ID.";
+            }
+
+            $pendingId->close();
+        }
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Profile Photo Upload
+    |--------------------------------------------------------------------------
+    */
+
+    if (
+        $error === "" &&
+        isset($_FILES["profile_photo"]) &&
+        $_FILES["profile_photo"]["error"] !==
+        UPLOAD_ERR_NO_FILE
+    ) {
+
+        if (
+            $_FILES["profile_photo"]["error"] !==
+            UPLOAD_ERR_OK
+        ) {
+
+            $error =
+                "There was a problem uploading the profile photo.";
+
+        } else {
+
+            $file = $_FILES["profile_photo"];
+
+            $maxSize =
+                5 * 1024 * 1024;
+
+            if ($file["size"] > $maxSize) {
+
+                $error =
+                    "Profile photo must be smaller than 5 MB.";
 
             } else {
 
-                $file = $_FILES["profile_photo"];
+                $allowedTypes = [
+                    "image/jpeg" => "jpg",
+                    "image/png"  => "png",
+                    "image/webp" => "webp"
+                ];
 
-                $maxSize = 5 * 1024 * 1024;
+                $mimeType =
+                    mime_content_type(
+                        $file["tmp_name"]
+                    );
 
-                if ($file["size"] > $maxSize) {
+                if (
+                    !isset(
+                        $allowedTypes[$mimeType]
+                    )
+                ) {
 
                     $error =
-                        "Profile photo must be smaller than 5 MB.";
+                        "Only JPG, PNG and WebP images are allowed.";
 
                 } else {
 
-                    $allowedTypes = [
+                    $extension =
+                        $allowedTypes[$mimeType];
 
-                        "image/jpeg" => "jpg",
-                        "image/png"  => "png",
-                        "image/webp" => "webp"
+                    $profilePhoto =
+                        bin2hex(
+                            random_bytes(16)
+                        ) . "." . $extension;
 
-                    ];
+                    $uploadDirectory =
+                        "../../uploads/";
 
-                    $mimeType =
-                        mime_content_type(
-                            $file["tmp_name"]
+                    if (
+                        !is_dir(
+                            $uploadDirectory
+                        )
+                    ) {
+
+                        mkdir(
+                            $uploadDirectory,
+                            0755,
+                            true
                         );
+                    }
 
-                    if (!isset($allowedTypes[$mimeType])) {
+                    $destination =
+                        $uploadDirectory .
+                        $profilePhoto;
+
+                    if (
+                        !move_uploaded_file(
+                            $file["tmp_name"],
+                            $destination
+                        )
+                    ) {
+
+                        $profilePhoto = null;
 
                         $error =
-                            "Only JPG, PNG and WebP images are allowed.";
-
-                    } else {
-
-                        $extension =
-                            $allowedTypes[$mimeType];
-
-                        $profilePhoto =
-                            bin2hex(
-                                random_bytes(16)
-                            ) .
-                            "." .
-                            $extension;
-
-                        $uploadDirectory =
-                            "../../uploads/";
-
-                        if (!is_dir($uploadDirectory)) {
-
-                            mkdir(
-                                $uploadDirectory,
-                                0755,
-                                true
-                            );
-                        }
-
-                        $destination =
-                            $uploadDirectory .
-                            $profilePhoto;
-
-                        if (
-                            !move_uploaded_file(
-                                $file["tmp_name"],
-                                $destination
-                            )
-                        ) {
-
-                            $profilePhoto = null;
-
-                            $error =
-                                "Unable to save the profile photo.";
-                        }
+                            "Unable to save the profile photo.";
                     }
                 }
             }
         }
+    }
 
+    /*
+    |--------------------------------------------------------------------------
+    | Create Pending Registration
+    |--------------------------------------------------------------------------
+    */
 
-        /*
-        |--------------------------------------------------------------------------
-        | Create User + Alumni
-        |--------------------------------------------------------------------------
-        */
+    if ($error === "") {
 
-        if ($error === "") {
+        $passwordHash =
+            password_hash(
+                $password,
+                PASSWORD_DEFAULT
+            );
+
+        if ($passwordHash === false) {
+
+            $error =
+                "Unable to secure the password.";
+
+        } else {
+
+            $dateOfBirthValue =
+                $dateOfBirth !== ""
+                    ? $dateOfBirth
+                    : null;
 
             $conn->begin_transaction();
- try {
 
-                /*
-                | Create User Account
-                */
-
-                $passwordHash =
-                    password_hash(
-                        $password,
-                        PASSWORD_DEFAULT
-                    );
-
-                $userStmt = $conn->prepare("
-                    INSERT INTO users
+            try {
+ $registrationStmt = $conn->prepare("
+                    INSERT INTO alumni_registrations
                     (
                         email,
                         password_hash,
-                        role,
-                        account_status
-                    )
-                    VALUES
-                    (
-                        ?,
-                        ?,
-                        'alumni',
-                        'active'
-                    )
-                ");
-
-                if (!$userStmt) {
-                    throw new Exception(
-                        $conn->error
-                    );
-                }
-
-                $userStmt->bind_param(
-                    "ss",
-                    $email,
-                    $passwordHash
-                );
-
-                $userStmt->execute();
-
-                $userId =
-                    $conn->insert_id;
-
-                $userStmt->close();
-
-
-                /*
-                | Create Alumni Profile
-                */
-
-                $alumniStmt = $conn->prepare("
-                    INSERT INTO alumni
-                    (
-                        user_id,
-                        alumni_id_number,
+                        college_id_number,
                         first_name,
                         last_name,
                         gender,
@@ -412,11 +534,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                         graduation_year,
                         bio,
                         profile_photo,
-                        show_profile,
-                        show_profession,
-                        show_skills,
-                        show_email,
-                        show_phone
+                        status,
+                        submitted_by
                     )
                     VALUES
                     (
@@ -432,53 +551,54 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                         ?,
                         ?,
                         ?,
-                        1,
-                        1,
-                        1,
-                        1,
-                        1
+                        ?,
+                        'pending',
+                        ?
                     )
                 ");
 
-                if (!$alumniStmt) {
+                if (!$registrationStmt) {
+
                     throw new Exception(
-                        $conn->error
+                        "Unable to prepare registration."
                     );
                 }
 
-                $alumniStmt->bind_param(
-                    "isssssssiiss",
-                    $userId,
+                $submittedBy =
+                    (int)$_SESSION["user_id"];
+
+                $registrationStmt->bind_param(
+                    "sssssssssiissi",
+                    $email,
+                    $passwordHash,
                     $alumniIdNumber,
                     $firstName,
                     $lastName,
                     $gender,
-                    $dateOfBirth,
+                    $dateOfBirthValue,
                     $phone,
                     $address,
                     $departmentId,
                     $graduationYear,
                     $bio,
-                    $profilePhoto
+                    $profilePhoto,
+                    $submittedBy
                 );
 
-                $alumniStmt->execute();
+                $registrationStmt->execute();
 
-                $alumniStmt->close();
-
-
-                /*
-                | Commit
-                */
+                $registrationStmt->close();
 
                 $conn->commit();
 
                 $success =
-                    "Alumni account created successfully.";
-
+                    "Alumni registration submitted successfully. " .
+                    "It is now waiting for Registrar verification.";
 
                 /*
+                |--------------------------------------------------------------------------
                 | Clear Form
+                |--------------------------------------------------------------------------
                 */
 
                 $email = "";
@@ -492,15 +612,20 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 $departmentId = "";
                 $graduationYear = "";
                 $bio = "";
+                $profilePhoto = null;
+            }
 
-            } catch (Exception $e) {
+            catch (Exception $e) {
 
                 $conn->rollback();
 
                 /*
-                | Remove Photo If Database Failed
+                |--------------------------------------------------------------------------
+                | Remove Uploaded Photo If Database Failed
+                |--------------------------------------------------------------------------
                 */
-  if (
+
+                if (
                     $profilePhoto !== null &&
                     file_exists(
                         "../../uploads/" .
@@ -515,17 +640,14 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 }
 
                 $error =
-                    "Unable to create alumni account. " .
-                    $e->getMessage();
+                    "Unable to submit the alumni registration.";
             }
         }
     }
 }
 
-?>
-
-<?php
 $activePage = "add";
+
 ?>
 
 <!DOCTYPE html>
@@ -545,34 +667,28 @@ $activePage = "add";
         Add Alumni |
         <?= e(SITE_NAME) ?>
     </title>
-
-    <link
+ <link
         rel="stylesheet"
         href="../../assets/css/style.css"
     >
 
 </head>
 
-
 <body class="admin-body">
-
 
 <div class="admin-layout">
 
-
     <!-- =====================================================
-         REUSABLE REGISTRAR SIDEBAR
+         STUDENT REPRESENTATIVE SIDEBAR
     ====================================================== -->
 
     <?php include "includes/sidebar.php"; ?>
-
 
     <!-- =====================================================
          MAIN
     ====================================================== -->
 
     <main class="admin-main">
-
 
         <!-- TOPBAR -->
 
@@ -585,26 +701,25 @@ $activePage = "add";
                 </h1>
 
                 <p>
-                    Create a new alumni account and profile.
+                    Register a new alumni for Registrar verification
                 </p>
 
             </div>
 
-
             <div class="admin-user">
 
                 <div class="admin-avatar">
-                    R
+                    S
                 </div>
 
                 <div>
 
                     <strong>
-                        Registrar
+                        Student Representative
                     </strong>
 
                     <small>
-                        Registration Officer
+                        Alumni Registration Officer
                     </small>
 
                 </div>
@@ -613,33 +728,25 @@ $activePage = "add";
 
         </header>
 
-
         <!-- CONTENT -->
 
         <section class="dashboard-content">
 
-
             <?php if ($error !== ""): ?>
 
                 <div class="form-alert error-message">
-
                     <?= e($error) ?>
-
                 </div>
 
             <?php endif; ?>
-
 
             <?php if ($success !== ""): ?>
 
                 <div class="form-alert success-message">
-
                     <?= e($success) ?>
-
                 </div>
 
             <?php endif; ?>
-
 
             <form
                 method="POST"
@@ -647,6 +754,7 @@ $activePage = "add";
                 class="alumni-form"
             >
 
+                <?= csrf_field() ?>
 
                 <!-- =================================================
                      LOGIN ACCOUNT
@@ -663,17 +771,15 @@ $activePage = "add";
                             </h2>
 
                             <p>
-                                These details will be used by the
-                                alumni to log in.
+                                These details will be used by the alumni
+                                to log in after approval.
                             </p>
 
                         </div>
 
                     </div>
 
-
                     <div class="form-grid">
-
 
                         <div class="form-field">
 
@@ -691,13 +797,13 @@ $activePage = "add";
 
                         </div>
 
-
                         <div class="form-field">
 
                             <label for="password">
                                 Temporary Password *
                             </label>
- <input
+
+                            <input
                                 type="password"
                                 id="password"
                                 name="password"
@@ -711,19 +817,16 @@ $activePage = "add";
 
                         </div>
 
-
                     </div>
 
                 </div>
-
 
                 <!-- =================================================
                      PERSONAL INFORMATION
                 ================================================== -->
 
                 <div class="dashboard-panel">
-
-                    <div class="panel-header">
+<div class="panel-header">
 
                         <div>
 
@@ -739,26 +842,23 @@ $activePage = "add";
 
                     </div>
 
-
                     <div class="form-grid">
-
 
                         <div class="form-field">
 
-                            <label for="alumni_id_number">
-                                Alumni ID Number *
+                            <label for="college_id_number">
+                                College ID Number *
                             </label>
 
                             <input
                                 type="text"
-                                id="alumni_id_number"
-                                name="alumni_id_number"
+                                id="college_id_number"
+                                name="college_id_number"
                                 value="<?= e($alumniIdNumber) ?>"
                                 required
                             >
 
                         </div>
-
 
                         <div class="form-field">
 
@@ -776,7 +876,6 @@ $activePage = "add";
 
                         </div>
 
-
                         <div class="form-field">
 
                             <label for="last_name">
@@ -792,7 +891,6 @@ $activePage = "add";
                             >
 
                         </div>
-
 
                         <div class="form-field">
 
@@ -829,8 +927,8 @@ $activePage = "add";
                                 </option>
 
                             </select>
- </div>
 
+                        </div>
 
                         <div class="form-field">
 
@@ -847,14 +945,12 @@ $activePage = "add";
 
                         </div>
 
-
                         <div class="form-field">
 
                             <label for="phone">
                                 Phone
                             </label>
-
-                            <input
+<input
                                 type="tel"
                                 id="phone"
                                 name="phone"
@@ -862,7 +958,6 @@ $activePage = "add";
                             >
 
                         </div>
-
 
                         <div class="form-field form-full">
 
@@ -879,11 +974,9 @@ $activePage = "add";
 
                         </div>
 
-
                     </div>
 
                 </div>
-
 
                 <!-- =================================================
                      EDUCATION
@@ -907,9 +1000,7 @@ $activePage = "add";
 
                     </div>
 
-
                     <div class="form-grid">
-
 
                         <div class="form-field">
 
@@ -926,7 +1017,6 @@ $activePage = "add";
                                 <option value="">
                                     Select Department
                                 </option>
-
 
                                 <?php foreach ($departments as $department): ?>
 
@@ -948,18 +1038,17 @@ $activePage = "add";
 
                                 <?php endforeach; ?>
 
-
                             </select>
 
                         </div>
-
 
                         <div class="form-field">
 
                             <label for="graduation_year">
                                 Graduation Year *
                             </label>
- <input
+
+                            <input
                                 type="number"
                                 id="graduation_year"
                                 name="graduation_year"
@@ -971,11 +1060,9 @@ $activePage = "add";
 
                         </div>
 
-
                     </div>
 
                 </div>
-
 
                 <!-- =================================================
                      PROFILE
@@ -990,8 +1077,7 @@ $activePage = "add";
                             <h2>
                                 Profile
                             </h2>
-
-                            <p>
+ <p>
                                 Add a profile photo and biography.
                             </p>
 
@@ -999,9 +1085,7 @@ $activePage = "add";
 
                     </div>
 
-
                     <div class="form-grid">
-
 
                         <div class="form-field">
 
@@ -1023,7 +1107,6 @@ $activePage = "add";
 
                         </div>
 
-
                         <div class="form-field form-full">
 
                             <label for="bio">
@@ -1039,11 +1122,9 @@ $activePage = "add";
 
                         </div>
 
-
                     </div>
 
                 </div>
-
 
                 <!-- =================================================
                      ACTIONS
@@ -1058,28 +1139,22 @@ $activePage = "add";
                         Cancel
                     </a>
 
-
                     <button
                         type="submit"
                         class="primary-button"
                     >
-                        Create Alumni
+                        Submit for Approval
                     </button>
 
                 </div>
 
-
             </form>
-
 
         </section>
 
-
     </main>
 
-
 </div>
-
 
 </body>
 

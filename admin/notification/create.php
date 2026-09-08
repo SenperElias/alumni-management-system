@@ -36,8 +36,24 @@ $users = $conn->query("
         user_id,
         email
     FROM users
-    WHERE account_status = 'active'
+    WHERE account_status = 'active' AND role = 'alumni'
     ORDER BY email ASC
+");
+$events = $conn->query("
+    SELECT
+        event_id,
+        title
+    FROM events
+    WHERE status = 'published'
+    ORDER BY event_date ASC
+");
+$opportunities = $conn->query("
+    SELECT
+        opportunity_id,
+        title
+    FROM opportunities
+    WHERE status = 'published'
+    ORDER BY created_at DESC
 ");
 
 /*
@@ -47,22 +63,61 @@ $users = $conn->query("
 */
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
-
+verify_csrf_token($_POST["csrf_token"] ?? "");
     $userId = $_POST["user_id"] ?? "";
     $title = trim($_POST["title"] ?? "");
     $message = trim($_POST["message"] ?? "");
     $type = trim($_POST["type"] ?? "");
+$eventId = $_POST["event_id"] ?? "";
+$eventId = $eventId !== "" ? (int) $eventId : null;
 
+$opportunityId = $_POST["opportunity_id"] ?? "";
+$opportunityId = $opportunityId !== "" ? (int) $opportunityId : null;
+
+/*
+|--------------------------------------------------------------------------
+| Enforce Notification Link Type
+|--------------------------------------------------------------------------
+*/
+
+if ($type === "Event") {
+    $opportunityId = null;
+} elseif ($type === "Opportunity") {
+    $eventId = null;
+} else {
+    $eventId = null;
+    $opportunityId = null;
+}
     if (
-        $userId === "" ||
-        $title === "" ||
-        $message === "" ||
-        $type === ""
-    ) {
+    $userId === "" ||
+    $title === "" ||
+    $message === "" ||
+    $type === ""
+) {
+    $error = "Please fill in all required fields.";
+} else {
+    $checkUser = $conn->prepare("
+        SELECT user_id
+        FROM users
+        WHERE user_id = ?
+          AND role = 'alumni'
+          AND account_status = 'active'
+        LIMIT 1
+    ");
 
-        $error = "Please fill in all required fields.";
+    $checkUser->bind_param("i", $userId);
+    $checkUser->execute();
+    $checkUser->store_result();
 
+    if ($checkUser->num_rows === 0) {
+        $error = "Invalid recipient selected.";
+        $checkUser->close();
     } else {
+        $checkUser->close();
+    }
+
+
+        // Your existing INSERT code continues here.
 
         $stmt = $conn->prepare("
             INSERT INTO notifications
@@ -71,11 +126,15 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 title,
                 message,
                 type,
+                event_id,
+                opportunity_id,
                 is_read,
                 created_at
             )
             VALUES
             (
+                ?,
+                ?,
                 ?,
                 ?,
                 ?,
@@ -86,11 +145,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         ");
 
         $stmt->bind_param(
-            "isss",
+            "isssii",
             $userId,
             $title,
             $message,
-            $type
+            $type,
+            $eventId,
+            $opportunityId
         );
 
         if ($stmt->execute()) {
@@ -290,6 +351,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     method="POST"
                     action=""
                 >
+                <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
 
                     <div class="form-group">
 
@@ -385,6 +447,50 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                         </select>
 
                     </div>
+                    <div class="form-group">
+    <label for="event_id">
+        Event (Optional)
+    </label>
+
+    <select
+        id="event_id"
+        name="event_id"
+    >
+        <option value="">
+            No Event Link
+        </option>
+
+        <?php if ($events): ?>
+            <?php while ($event = $events->fetch_assoc()): ?>
+                <option value="<?= (int) $event["event_id"] ?>">
+                    <?= e($event["title"]) ?>
+                </option>
+            <?php endwhile; ?>
+        <?php endif; ?>
+    </select>
+</div>
+<div class="form-group">
+    <label for="opportunity_id">
+        Opportunity (Optional)
+    </label>
+
+    <select
+        id="opportunity_id"
+        name="opportunity_id"
+    >
+        <option value="">
+            No Opportunity Link
+        </option>
+
+        <?php if ($opportunities): ?>
+            <?php while ($opportunity = $opportunities->fetch_assoc()): ?>
+                <option value="<?= (int) $opportunity["opportunity_id"] ?>">
+                    <?= e($opportunity["title"]) ?>
+                </option>
+            <?php endwhile; ?>
+        <?php endif; ?>
+    </select>
+</div>
 
 
                     <div class="form-group">
@@ -430,7 +536,22 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     </main>
 
 </div>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const type = document.getElementById("type");
+    const eventField = document.getElementById("event_id").closest(".form-group");
+    const opportunityField = document.getElementById("opportunity_id").closest(".form-group");
 
+    function updateLinkFields() {
+    eventField.style.display = type.value === "Event" ? "block" : "none";
+    opportunityField.style.display = type.value === "Opportunity" ? "block" : "none";
+}
+
+    type.addEventListener("change", updateLinkFields);
+
+    updateLinkFields();
+});
+</script>
 </body>
 
 </html>
