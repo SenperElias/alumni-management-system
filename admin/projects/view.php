@@ -169,6 +169,7 @@ $sql = "
         p.title,
         p.category,
         p.description,
+        p.proposal_document,
         p.required_skills,
         p.start_date,
         p.end_date,
@@ -339,7 +340,19 @@ $approval =
 
         }
 
+.proposal-button {
+    display: inline-block;
+    padding: 10px 14px;
+    border-radius: 8px;
+    background: #a35014;
+    color: #ffffff;
+    text-decoration: none;
+    font-weight: 400;
+}
 
+.proposal-button:hover {
+    background: #5f3921;
+}
         .project-category {
 
             color: #7a4b2a;
@@ -639,109 +652,8 @@ $approval =
 <div class="admin-layout">
 
 
-    <!-- SIDEBAR -->
-
-
-    <aside class="admin-sidebar">
-
-
-        <div class="admin-brand">
-
-
-            <div class="brand-logo">
-                TM
-            </div>
-
-
-            <div>
-
-                <strong>
-                    Alumni System
-                </strong>
-
-                <small>
-                    Admin Portal
-                </small>
-
-            </div>
-
-
-        </div>
-
-
-        <nav class="admin-nav">
-
-
-            <a href="../dashboard.php">
-                Dashboard
-            </a>
-
-
-            <div class="nav-section">
-                MANAGEMENT
-            </div>
-
-
-            <a href="../alumni/index.php">
-                Alumni
-            </a>
-
-
-            <a href="../employment/index.php">
-                Employment
-            </a>
-
-
-            <a href="../events/index.php">
-                Events
-            </a>
-
-
-            <a href="../mentors/index.php">
-                Mentors
-            </a>
-
-
-            <a href="../opportunities/index.php">
-                Opportunities
-            </a>
-
-
-            <a
-                href="index.php"
-                class="active"
-            >
-                Projects
-            </a>
-
-
-            <div class="nav-section">
-                SYSTEM
-            </div>
-
-
-            <a href="#">
-                Reports
-            </a>
-
-
-            <a href="#">
-                Settings
-            </a>
-
-
-            <a
-                href="../../auth/logout.php"
-                class="logout-link"
-            >
-                Logout
-            </a>
-
-
-        </nav>
-
-
-    </aside>
+     <?php require_once __DIR__ ."/../includes/sidebar.php"; ?>
+        
 
 
     <!-- MAIN CONTENT -->
@@ -880,7 +792,44 @@ $approval =
 
                     </div>
 
+<?php if (!empty($project["proposal_document"])): ?>
 
+    <div class="detail-group">
+
+        <div class="detail-section">
+           <strong> Project Proposal</strong>
+        </div>
+
+        <div class="detail-value">
+
+            <a
+                href="view_proposal.php?id=<?=(int)$project["project_id"]?>"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="proposal-button"
+            >
+                View Proposal PDF
+            </a>
+
+        </div>
+
+    </div>
+
+<?php else: ?>
+
+    <div class="detail-group">
+
+        <div class="detail-label">
+            Project Proposal
+        </div>
+
+        <div class="detail-value">
+            No proposal document uploaded.
+        </div>
+
+    </div>
+
+<?php endif; ?>
                     <div class="detail-section">
 
 

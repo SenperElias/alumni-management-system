@@ -155,7 +155,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $expectedCompletionDate = trim(
             $_POST["expected_completion_date"] ?? ""
         );
-
+$verificationDocument = null;
         /*
         |--------------------------------------------------------------------------
         | Validation
@@ -247,7 +247,41 @@ $allowedStatuses = [
         | Insert Record
         |--------------------------------------------------------------------------
         */
+if ($error === "" && isset($_FILES["verification_document"]) && $_FILES["verification_document"]["error"] !== UPLOAD_ERR_NO_FILE) {
 
+    $file = $_FILES["verification_document"];
+
+    if ($file["error"] !== UPLOAD_ERR_OK) {
+
+        $error = "There was a problem uploading the verification document.";
+
+    } elseif ($file["size"] > 5 * 1024 * 1024) {
+
+        $error = "The verification document must not exceed 5 MB.";
+
+    } else {
+
+        $finfo = finfo_open(FILEINFO_MIME_TYPE);
+        $mimeType = finfo_file($finfo, $file["tmp_name"]);
+        finfo_close($finfo);
+
+        $allowedMimeTypes = [
+            "application/pdf" => "pdf",
+            "image/jpeg" => "jpg",
+            "image/png" => "png"
+        ];
+
+        if (!isset($allowedMimeTypes[$mimeType])) {
+
+            $error = "Only PDF, JPG, and PNG verification documents are allowed.";
+
+        } else {
+
+            $verificationDocument =
+                bin2hex(random_bytes(16)) . "." . $allowedMimeTypes[$mimeType];
+        }
+    }
+}
         if ($error === "") {
 
             /*
@@ -303,8 +337,22 @@ $allowedStatuses = [
             | Insert Into Database
             |--------------------------------------------------------------------------
             */
+if ($verificationDocument !== null) {
 
-            $insert = $conn->prepare(
+    $uploadDirectory = __DIR__ . "/../uploads/employment_documents/";
+
+    $targetPath = $uploadDirectory . $verificationDocument;
+
+    if (!move_uploaded_file(
+        $_FILES["verification_document"]["tmp_name"],
+        $targetPath
+    )) {
+
+        $error = "Unable to save the verification document.";
+    }
+}
+    if ($error === "") {       
+$insert = $conn->prepare(
                 "INSERT INTO employment
                 (
                     alumni_id,
@@ -321,11 +369,12 @@ $allowedStatuses = [
                     end_date,
                     verification_status,
                     verification_notes,
+                    verification_document,
                     updated_by
                 )
                 VALUES
                 (
-                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?
                 )"
             );
 
@@ -337,7 +386,7 @@ $allowedStatuses = [
             } else {
 
                 $insert->bind_param(
-                    "issssssssssssi",
+                    "isssssssssssssi",
                     $alumniId,
                     $employmentStatus,
                     $companyName,
@@ -351,6 +400,7 @@ $allowedStatuses = [
                     $employmentDate,
                     $endDate,
                     $verificationStatus,
+                    $verificationDocument,
                     $userId
                 );
 
@@ -367,6 +417,7 @@ $allowedStatuses = [
 
                 $insert->close();
             }
+    }
         }
     }
 }
@@ -393,6 +444,7 @@ $stmt = $conn->prepare(
         end_date,
         verification_status,
         verification_notes,
+        verification_document,
         created_at,
         updated_at
      FROM employment
@@ -525,8 +577,8 @@ $employmentResult = $stmt->get_result();
                 <form
                     method="POST"
                     action="employment.php"
-                >
-
+                
+enctype="multipart/form-data">
                     <?= csrf_field() ?>
 
 
@@ -823,7 +875,25 @@ $employmentResult = $stmt->get_result();
 
                     </div>
 
+<div class="form-group">
+    <label for="verification_document">
+        Supporting Verification Document
+    </label>
 
+    <input
+        type="file"
+        id="verification_document"
+        name="verification_document"
+        accept=".pdf,.jpg,.jpeg,.png"
+    >
+
+    <small>
+        Upload supporting evidence such as an employment letter,
+        employee ID, recent payslip, business document, student ID,
+        admission/enrollment letter, or another official document.
+        PDF, JPG, or PNG files only. Maximum size: 5 MB.
+    </small>
+</div>
                     <!-- BUTTON -->
 
                     <div class="profile-form-actions">
@@ -1259,7 +1329,37 @@ $employmentResult = $stmt->get_result();
 
                                 </div>
 
+<!-- VERIFICATION DOCUMENT -->
 
+<?php if (!empty($job["verification_document"])): ?>
+
+    <div class="verification-document">
+
+        <strong>
+            Verification Evidence:
+        </strong>
+
+        <span>
+            Supporting document submitted
+        </span>
+
+    </div>
+
+<?php else: ?>
+
+    <div class="verification-document">
+
+        <strong>
+            Verification Evidence:
+        </strong>
+
+        <span>
+            No supporting document submitted
+        </span>
+
+    </div>
+
+<?php endif; ?>
                                 <!-- VERIFICATION NOTES -->
 
                                 <?php if (

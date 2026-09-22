@@ -2,13 +2,12 @@
 
 <aside class="admin-sidebar">
 
-    <div class="admin-brand">
-
+<div class="admin-brand">
         <div class="brand-logo">
-            TM
+            <img src="/almuni-management-system/assets/img/college-logo.jpg" alt="Taferi Mekonnen polytechnic Techhnical college Logo">
         </div>
-
         <div>
+ 
             <strong>
                 Alumni System
             </strong>

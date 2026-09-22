@@ -282,95 +282,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     <!-- SIDEBAR -->
 
-    <aside class="admin-sidebar">
+    <?php
+    require_once __DIR__ . "/includes/sidebar.php";
+    ?>
 
-        <div class="admin-brand">
+       
 
-            <div class="brand-logo">
-                TM
-            </div>
-
-            <div>
-
-                <strong>
-                    Alumni System
-                </strong>
-
-                <small>
-                    Alumni Portal
-                </small>
-
-            </div>
-
-        </div>
-
-
-        <nav class="admin-nav">
-
-            <a href="dashboard.php">
-                Dashboard
-            </a>
-
-            <div class="nav-section">
-                MY ACCOUNT
-            </div>
-
-            <a
-                href="profile.php"
-                class="active"
-            >
-                My Profile
-            </a>
-
-            <a href="employment.php">
-                Employment
-            </a>
-
-            <div class="nav-section">
-                OPPORTUNITIES
-            </div>
-
-            <a href="#">
-                Jobs & Internships
-            </a>
-
-            <a href="#">
-                Mentorship
-            </a>
-
-            <div class="nav-section">
-                ACTIVITIES
-            </div>
-
-            <a href="#">
-                Projects
-            </a>
-
-            <a href="#">
-                Events
-            </a>
-
-            <div class="nav-section">
-                SYSTEM
-            </div>
-
-            <a href="#">
-                Notifications
-            </a>
-
-            <a href="#">
-                Settings
-            </a>
-            <a
-                href="../auth/logout.php"
-                class="logout-link"
-            >
-                Logout
-            </a>
-
-        </nav>
-
-    </aside>
 
 
     <!-- MAIN -->

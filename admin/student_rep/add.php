@@ -32,22 +32,21 @@ $success = "";
 */
 
 $email = "";
-$alumniIdNumber = "";
+
 $firstName = "";
 $lastName = "";
 $gender = "";
 $dateOfBirth = "";
 $phone = "";
 $address = "";
+$alumniIdNumber = "";
 $departmentId = "";
+$sectionId = "";
+$specializationId = "";
+$level = "";
+
 $graduationYear = "";
 $bio = "";
-
-/*
-|--------------------------------------------------------------------------
-| Profile Photo
-|--------------------------------------------------------------------------
-*/
 
 $profilePhoto = null;
 
@@ -92,7 +91,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
         $error =
             "Invalid security token. Please refresh the page and try again.";
-
     }
 
     /*
@@ -135,7 +133,15 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     $departmentId = $_POST["department_id"] ?? "";
 
-    $graduationYear = $_POST["graduation_year"] ?? "";
+    $sectionId = $_POST["section_id"] ?? "";
+
+    $specializationId =
+        $_POST["specialization_id"] ?? "";
+
+    $level = $_POST["level"] ?? "";
+
+    $graduationYear =
+        $_POST["graduation_year"] ?? "";
 
     $bio = trim(
         $_POST["bio"] ?? ""
@@ -143,7 +149,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     /*
     |--------------------------------------------------------------------------
-    | Validation
+    | Basic Validation
     |--------------------------------------------------------------------------
     */
 
@@ -152,11 +158,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         if (
             $email === "" ||
             $password === "" ||
-            $alumniIdNumber === "" ||
+            
             $firstName === "" ||
             $lastName === "" ||
             $gender === "" ||
             $departmentId === "" ||
+            $sectionId === "" ||
+            $level === "" ||
             $graduationYear === ""
         ) {
 
@@ -176,10 +184,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         } elseif (
             strlen($password) < 8
         ) {
-
-            $error =
+ $error =
                 "Password must contain at least 8 characters.";
- } elseif (
+
+        } elseif (
             !in_array(
                 $gender,
                 ["Male", "Female"],
@@ -202,6 +210,26 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
         } elseif (
             !filter_var(
+                $sectionId,
+                FILTER_VALIDATE_INT
+            )
+        ) {
+
+            $error =
+                "Please select a valid section / program.";
+
+        } elseif (
+            !filter_var(
+                $level,
+                FILTER_VALIDATE_INT
+            )
+        ) {
+
+            $error =
+                "Please select a valid level.";
+
+        } elseif (
+            !filter_var(
                 $graduationYear,
                 FILTER_VALIDATE_INT
             ) ||
@@ -216,7 +244,124 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     /*
     |--------------------------------------------------------------------------
-    | Check Existing Active Email
+    | Validate Specialization
+    |--------------------------------------------------------------------------
+    */
+
+    if ($error === "") {
+
+        if ($specializationId !== "") {
+
+            if (
+                !filter_var(
+                    $specializationId,
+                    FILTER_VALIDATE_INT
+                )
+            ) {
+
+                $error =
+                    "Please select a valid specialization.";
+            }
+
+        } else {
+
+            $specializationId = null;
+        }
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Validate Academic Selection
+    |--------------------------------------------------------------------------
+    */
+
+    if ($error === "") {
+
+        $sectionId = (int)$sectionId;
+        $level = (int)$level;
+
+        if ($specializationId !== null) {
+
+            $specializationId =
+                (int)$specializationId;
+
+        }
+
+        $academicValid = false;
+
+        if ($specializationId !== null) {
+
+            $academicCheck = $conn->prepare("
+                SELECT level_id
+                FROM academic_levels
+                WHERE section_id = ?
+                  AND specialization_id = ?
+                  AND level = ?
+                LIMIT 1
+            ");
+
+            if ($academicCheck) {
+
+                $academicCheck->bind_param(
+                    "iii",
+                    $sectionId,
+                    $specializationId,
+                    $level
+                );
+
+                if ($academicCheck->execute()) {
+
+                    $academicResult =
+                        $academicCheck->get_result();
+
+                    $academicValid =
+                        $academicResult->num_rows > 0;
+                }
+
+                $academicCheck->close();
+            }
+
+        } else {
+
+            $academicCheck = $conn->prepare("
+                SELECT level_id
+                FROM academic_levels
+                WHERE section_id = ?
+                  AND specialization_id IS NULL
+                  AND level = ?
+                LIMIT 1
+            ");
+
+            if ($academicCheck) {
+
+                $academicCheck->bind_param(
+                    "ii",
+                    $sectionId,
+                    $level
+                );
+
+                if ($academicCheck->execute()) {
+
+                    $academicResult =
+                        $academicCheck->get_result();
+
+                    $academicValid =
+                        $academicResult->num_rows > 0;
+                }
+
+                $academicCheck->close();
+            }
+        }
+
+        if (!$academicValid) {
+ $error =
+                "Invalid department, section, specialization, or level selection.";
+        }
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Check Existing Email
     |--------------------------------------------------------------------------
     */
 
@@ -262,7 +407,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     |--------------------------------------------------------------------------
     */
 
-    if ($error === "") {
+    if ($error === "" && $alumniIdNumber !== "") {
 
         $checkId = $conn->prepare("
             SELECT alumni_id
@@ -304,13 +449,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     |--------------------------------------------------------------------------
     */
 
-    if ($error === "") {
+    if ($error === "" && $alumniIdNumber !== "") {
 
         $pendingEmail = $conn->prepare("
             SELECT registration_id
             FROM alumni_registrations
             WHERE email = ?
-            AND status = 'pending'
+              AND status = 'pending'
             LIMIT 1
         ");
 
@@ -331,9 +476,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $pendingEmailResult =
                 $pendingEmail->get_result();
 
-            if (
-                $pendingEmailResult->num_rows > 0
-            ) {
+            if ($pendingEmailResult->num_rows > 0) {
 
                 $error =
                     "A pending registration already exists for this email.";
@@ -355,12 +498,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             SELECT registration_id
             FROM alumni_registrations
             WHERE college_id_number = ?
-            AND status = 'pending'
+              AND status = 'pending'
             LIMIT 1
         ");
 
         if (!$pendingId) {
-$error =
+
+            $error =
                 "Unable to validate the Alumni ID.";
 
         } else {
@@ -375,9 +519,7 @@ $error =
             $pendingIdResult =
                 $pendingId->get_result();
 
-            if (
-                $pendingIdResult->num_rows > 0
-            ) {
+            if ($pendingIdResult->num_rows > 0) {
 
                 $error =
                     "A pending registration already exists for this Alumni ID.";
@@ -386,8 +528,7 @@ $error =
             $pendingId->close();
         }
     }
-
-    /*
+ /*
     |--------------------------------------------------------------------------
     | Profile Photo Upload
     |--------------------------------------------------------------------------
@@ -518,7 +659,8 @@ $error =
             $conn->begin_transaction();
 
             try {
- $registrationStmt = $conn->prepare("
+
+                $registrationStmt = $conn->prepare("
                     INSERT INTO alumni_registrations
                     (
                         email,
@@ -531,6 +673,9 @@ $error =
                         phone,
                         address,
                         department_id,
+ section_id,
+                        specialization_id,
+                        level,
                         graduation_year,
                         bio,
                         profile_photo,
@@ -539,6 +684,9 @@ $error =
                     )
                     VALUES
                     (
+                        ?,
+                        ?,
+                        ?,
                         ?,
                         ?,
                         ?,
@@ -568,7 +716,7 @@ $error =
                     (int)$_SESSION["user_id"];
 
                 $registrationStmt->bind_param(
-                    "sssssssssiissi",
+                    "sssssssssiiiisssi",
                     $email,
                     $passwordHash,
                     $alumniIdNumber,
@@ -579,13 +727,21 @@ $error =
                     $phone,
                     $address,
                     $departmentId,
+                    $sectionId,
+                    $specializationId,
+                    $level,
                     $graduationYear,
                     $bio,
                     $profilePhoto,
                     $submittedBy
                 );
 
-                $registrationStmt->execute();
+                if (!$registrationStmt->execute()) {
+
+                    throw new Exception(
+                        "Unable to save registration."
+                    );
+                }
 
                 $registrationStmt->close();
 
@@ -610,6 +766,9 @@ $error =
                 $phone = "";
                 $address = "";
                 $departmentId = "";
+                $sectionId = "";
+                $specializationId = "";
+                $level = "";
                 $graduationYear = "";
                 $bio = "";
                 $profilePhoto = null;
@@ -618,12 +777,6 @@ $error =
             catch (Exception $e) {
 
                 $conn->rollback();
-
-                /*
-                |--------------------------------------------------------------------------
-                | Remove Uploaded Photo If Database Failed
-                |--------------------------------------------------------------------------
-                */
 
                 if (
                     $profilePhoto !== null &&
@@ -667,7 +820,8 @@ $activePage = "add";
         Add Alumni |
         <?= e(SITE_NAME) ?>
     </title>
- <link
+
+    <link
         rel="stylesheet"
         href="../../assets/css/style.css"
     >
@@ -677,12 +831,12 @@ $activePage = "add";
 <body class="admin-body">
 
 <div class="admin-layout">
-
-    <!-- =====================================================
+ <!-- =====================================================
          STUDENT REPRESENTATIVE SIDEBAR
     ====================================================== -->
 
     <?php include "includes/sidebar.php"; ?>
+
 
     <!-- =====================================================
          MAIN
@@ -728,6 +882,7 @@ $activePage = "add";
 
         </header>
 
+
         <!-- CONTENT -->
 
         <section class="dashboard-content">
@@ -740,6 +895,7 @@ $activePage = "add";
 
             <?php endif; ?>
 
+
             <?php if ($success !== ""): ?>
 
                 <div class="form-alert success-message">
@@ -748,6 +904,7 @@ $activePage = "add";
 
             <?php endif; ?>
 
+
             <form
                 method="POST"
                 enctype="multipart/form-data"
@@ -755,6 +912,7 @@ $activePage = "add";
             >
 
                 <?= csrf_field() ?>
+
 
                 <!-- =================================================
                      LOGIN ACCOUNT
@@ -779,6 +937,7 @@ $activePage = "add";
 
                     </div>
 
+
                     <div class="form-grid">
 
                         <div class="form-field">
@@ -796,6 +955,7 @@ $activePage = "add";
                             >
 
                         </div>
+
 
                         <div class="form-field">
 
@@ -821,16 +981,17 @@ $activePage = "add";
 
                 </div>
 
+
                 <!-- =================================================
                      PERSONAL INFORMATION
                 ================================================== -->
 
                 <div class="dashboard-panel">
-<div class="panel-header">
+
+                    <div class="panel-header">
 
                         <div>
-
-                            <h2>
+<h2>
                                 Personal Information
                             </h2>
 
@@ -842,12 +1003,13 @@ $activePage = "add";
 
                     </div>
 
+
                     <div class="form-grid">
 
                         <div class="form-field">
 
                             <label for="college_id_number">
-                                College ID Number *
+                                College ID Number 
                             </label>
 
                             <input
@@ -855,10 +1017,11 @@ $activePage = "add";
                                 id="college_id_number"
                                 name="college_id_number"
                                 value="<?= e($alumniIdNumber) ?>"
-                                required
+                                
                             >
 
                         </div>
+
 
                         <div class="form-field">
 
@@ -876,6 +1039,7 @@ $activePage = "add";
 
                         </div>
 
+
                         <div class="form-field">
 
                             <label for="last_name">
@@ -891,6 +1055,7 @@ $activePage = "add";
                             >
 
                         </div>
+
 
                         <div class="form-field">
 
@@ -930,6 +1095,7 @@ $activePage = "add";
 
                         </div>
 
+
                         <div class="form-field">
 
                             <label for="date_of_birth">
@@ -945,12 +1111,13 @@ $activePage = "add";
 
                         </div>
 
+
                         <div class="form-field">
 
                             <label for="phone">
                                 Phone
                             </label>
-<input
+ <input
                                 type="tel"
                                 id="phone"
                                 name="phone"
@@ -958,6 +1125,7 @@ $activePage = "add";
                             >
 
                         </div>
+
 
                         <div class="form-field form-full">
 
@@ -978,6 +1146,7 @@ $activePage = "add";
 
                 </div>
 
+
                 <!-- =================================================
                      EDUCATION
                 ================================================== -->
@@ -993,14 +1162,19 @@ $activePage = "add";
                             </h2>
 
                             <p>
-                                College and graduation information.
+                                College, program, specialization and
+                                graduation information.
                             </p>
 
                         </div>
 
                     </div>
 
+
                     <div class="form-grid">
+
+
+                        <!-- DEPARTMENT -->
 
                         <div class="form-field">
 
@@ -1018,7 +1192,10 @@ $activePage = "add";
                                     Select Department
                                 </option>
 
-                                <?php foreach ($departments as $department): ?>
+                                <?php foreach (
+                                    $departments
+                                    as $department
+                                ): ?>
 
                                     <option
                                         value="<?= e(
@@ -1042,6 +1219,79 @@ $activePage = "add";
 
                         </div>
 
+
+                        <!-- SECTION -->
+
+                        <div class="form-field">
+
+                            <label for="section_id">
+                                Section / Program *
+                            </label>
+
+                            <select
+                                id="section_id"
+                                name="section_id"
+                                required
+                                disabled
+                            >
+
+                                <option value="">
+                                    Select Department First
+                                </option>
+
+                            </select>
+
+                        </div>
+
+
+                        <!-- SPECIALIZATION -->
+
+                        <div class="form-field">
+ <label for="specialization_id">
+                                Specialization
+                            </label>
+
+                            <select
+                                id="specialization_id"
+                                name="specialization_id"
+                                disabled
+                            >
+
+                                <option value="">
+                                    Select Section / Program First
+                                </option>
+
+                            </select>
+
+                        </div>
+
+
+                        <!-- LEVEL -->
+
+                        <div class="form-field">
+
+                            <label for="level">
+                                Level *
+                            </label>
+
+                            <select
+                                id="level"
+                                name="level"
+                                required
+                                disabled
+                            >
+
+                                <option value="">
+                                    Select Section / Program First
+                                </option>
+
+                            </select>
+
+                        </div>
+
+
+                        <!-- GRADUATION YEAR -->
+
                         <div class="form-field">
 
                             <label for="graduation_year">
@@ -1064,6 +1314,7 @@ $activePage = "add";
 
                 </div>
 
+
                 <!-- =================================================
                      PROFILE
                 ================================================== -->
@@ -1077,13 +1328,15 @@ $activePage = "add";
                             <h2>
                                 Profile
                             </h2>
- <p>
+
+                            <p>
                                 Add a profile photo and biography.
                             </p>
 
                         </div>
 
                     </div>
+
 
                     <div class="form-grid">
 
@@ -1107,6 +1360,7 @@ $activePage = "add";
 
                         </div>
 
+
                         <div class="form-field form-full">
 
                             <label for="bio">
@@ -1126,11 +1380,11 @@ $activePage = "add";
 
                 </div>
 
+
                 <!-- =================================================
                      ACTIONS
                 ================================================== -->
-
-                <div class="form-actions">
+ <div class="form-actions">
 
                     <a
                         href="dashboard.php"
@@ -1155,6 +1409,398 @@ $activePage = "add";
     </main>
 
 </div>
+
+
+<!-- =========================================================
+     ACADEMIC DROPDOWNS JAVASCRIPT
+     Department → Section → Specialization → Level
+========================================================= -->
+
+<script>
+
+const departmentSelect =
+    document.getElementById("department_id");
+
+const sectionSelect =
+    document.getElementById("section_id");
+
+const specializationSelect =
+    document.getElementById("specialization_id");
+
+const levelSelect =
+    document.getElementById("level");
+
+
+/*
+|--------------------------------------------------------------------------
+| Department → Section
+|--------------------------------------------------------------------------
+*/
+
+departmentSelect.addEventListener(
+    "change",
+    function () {
+
+        const departmentId =
+            this.value;
+
+
+        sectionSelect.innerHTML =
+            '<option value="">Loading sections...</option>';
+
+        sectionSelect.disabled = true;
+
+
+        specializationSelect.innerHTML =
+            '<option value="">Select Section / Program First</option>';
+
+        specializationSelect.disabled = true;
+
+
+        levelSelect.innerHTML =
+            '<option value="">Select Section / Program First</option>';
+
+        levelSelect.disabled = true;
+
+
+        if (!departmentId) {
+
+            sectionSelect.innerHTML =
+                '<option value="">Select Department First</option>';
+
+            return;
+        }
+
+
+        fetch(
+            "../../auth/get_sections.php?department_id=" +
+            encodeURIComponent(departmentId)
+        )
+
+        .then(function (response) {
+
+            if (!response.ok) {
+
+                throw new Error(
+                    "Failed to load sections."
+                );
+            }
+
+            return response.json();
+
+        })
+
+        .then(function (data) {
+
+            sectionSelect.innerHTML =
+                '<option value="">Select Section / Program</option>';
+
+
+            if (
+                data.success &&
+                Array.isArray(data.sections) &&
+                data.sections.length > 0
+            ) {
+
+                data.sections.forEach(
+                    function (section) {
+
+                        const option =
+                            document.createElement(
+                                "option"
+                            );
+
+                        option.value =
+                            section.section_id;
+
+                        option.textContent =
+                            section.section_name;
+
+                        sectionSelect.appendChild(
+                            option
+                        );
+
+                    }
+                );
+
+                sectionSelect.disabled = false;
+
+            } else {
+
+                sectionSelect.innerHTML =
+                    '<option value="">No sections available</option>';
+
+                sectionSelect.disabled = true;
+            }
+
+        })
+
+        .catch(function (error) {
+
+            console.error(
+                "Section loading error:",
+                error
+            );
+
+            sectionSelect.innerHTML =
+                '<option value="">Unable to load sections</option>';
+
+            sectionSelect.disabled = true;
+        });
+
+    }
+);
+
+
+/*
+|--------------------------------------------------------------------------
+| Section → Specialization
+|--------------------------------------------------------------------------
+*/
+
+sectionSelect.addEventListener(
+    "change",
+    function () {
+
+        const sectionId =
+            this.value;
+ specializationSelect.innerHTML =
+            '<option value="">Loading specializations...</option>';
+
+        specializationSelect.disabled = true;
+
+
+        levelSelect.innerHTML =
+            '<option value="">Select Section / Program First</option>';
+
+        levelSelect.disabled = true;
+
+
+        if (!sectionId) {
+
+            specializationSelect.innerHTML =
+                '<option value="">Select Section / Program First</option>';
+
+            return;
+        }
+
+
+        fetch(
+            "../../auth/get_specializations.php?section_id=" +
+            encodeURIComponent(sectionId)
+        )
+
+        .then(function (response) {
+
+            if (!response.ok) {
+
+                throw new Error(
+                    "Failed to load specializations."
+                );
+            }
+
+            return response.json();
+
+        })
+
+        .then(function (data) {
+
+            if (
+                data.success &&
+                Array.isArray(data.specializations) &&
+                data.specializations.length > 0
+            ) {
+
+                specializationSelect.innerHTML =
+                    '<option value="">Select Specialization</option>';
+
+
+                data.specializations.forEach(
+                    function (specialization) {
+
+                        const option =
+                            document.createElement(
+                                "option"
+                            );
+
+                        option.value =
+                            specialization.specialization_id;
+
+                        option.textContent =
+                            specialization.specialization_name;
+
+                        specializationSelect.appendChild(
+                            option
+                        );
+
+                    }
+                );
+
+                specializationSelect.disabled = false;
+
+            } else {
+
+                specializationSelect.innerHTML =
+                    '<option value="">No specialization required</option>';
+
+                specializationSelect.disabled = true;
+
+                loadLevels();
+            }
+
+        })
+
+        .catch(function (error) {
+
+            console.error(
+                "Specialization loading error:",
+                error
+            );
+
+            specializationSelect.innerHTML =
+                '<option value="">Unable to load specializations</option>';
+
+            specializationSelect.disabled = true;
+        });
+
+    }
+);
+
+
+/*
+|--------------------------------------------------------------------------
+| Specialization → Level
+|--------------------------------------------------------------------------
+*/
+
+specializationSelect.addEventListener(
+    "change",
+    function () {
+
+        loadLevels();
+
+    }
+);
+
+
+/*
+|--------------------------------------------------------------------------
+| Load Levels
+|--------------------------------------------------------------------------
+*/
+
+function loadLevels() {
+
+    const sectionId =
+        sectionSelect.value;
+
+    const specializationId =
+        specializationSelect.value;
+
+
+    levelSelect.innerHTML =
+        '<option value="">Loading levels...</option>';
+
+    levelSelect.disabled = true;
+
+
+    if (!sectionId) {
+
+        levelSelect.innerHTML =
+            '<option value="">Select Section / Program First</option>';
+
+        return;
+    }
+
+
+    let url =
+        "../../auth/get_levels.php?section_id=" +
+        encodeURIComponent(sectionId);
+
+
+    if (specializationId) {
+
+        url +=
+            "&specialization_id=" +
+            encodeURIComponent(specializationId);
+    }
+
+
+    fetch(url)
+
+    .then(function (response) {
+
+        if (!response.ok) {
+
+            throw new Error(
+                "Failed to load levels."
+            );
+        }
+
+        return response.json();
+
+    })
+
+    .then(function (data) {
+
+        levelSelect.innerHTML =
+            '<option value="">Select Level</option>';
+
+
+        if (
+            data.success &&
+            Array.isArray(data.levels) &&
+            data.levels.length > 0
+        ) {
+ data.levels.forEach(
+                function (level) {
+
+                    const option =
+                        document.createElement(
+                            "option"
+                        );
+
+                    option.value =
+                        level;
+
+                    option.textContent =
+                        "Level " + level;
+
+                    levelSelect.appendChild(
+                        option
+                    );
+
+                }
+            );
+
+            levelSelect.disabled = false;
+
+        } else {
+
+            levelSelect.innerHTML =
+                '<option value="">No levels available</option>';
+
+            levelSelect.disabled = true;
+        }
+
+    })
+
+    .catch(function (error) {
+
+        console.error(
+            "Level loading error:",
+            error
+        );
+
+        levelSelect.innerHTML =
+            '<option value="">Unable to load levels</option>';
+
+        levelSelect.disabled = true;
+    });
+
+}
+
+</script>
 
 </body>
 

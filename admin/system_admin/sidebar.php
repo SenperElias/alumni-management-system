@@ -4,14 +4,17 @@ $currentPage = basename($_SERVER["PHP_SELF"]);
 
 <aside class="admin-sidebar">
 
-    <div class="admin-brand">
-        <div class="brand-logo">TM</div>
+    
+         <div class="admin-brand">
+        <div class="brand-logo">
+            <img src="/almuni-management-system/assets/img/college-logo.jpg" alt="Taferi Mekonnen polytechnic Techhnical college Logo">
+        </div>
         <div>
             <strong>Alumni System</strong>
-            <small>System Administrator Portal</small>
+            <small>Alumni President Portal</small>
         </div>
     </div>
-
+       
     <nav class="admin-nav">
 
         <a href="/almuni-management-system/admin/system_admin/dashboard.php"

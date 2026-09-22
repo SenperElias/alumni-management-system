@@ -27,14 +27,23 @@ if ($registration_id <= 0) {
 | Get Registration
 |--------------------------------------------------------------------------
 */
-
 $sql = "
     SELECT
         r.*,
-        d.department_name
+        d.department_name,
+        s.section_name,
+        sp.specialization_name
     FROM alumni_registrations r
+
     LEFT JOIN departments d
         ON r.department_id = d.department_id
+
+    LEFT JOIN sections s
+        ON r.section_id = s.section_id
+
+    LEFT JOIN specializations sp
+        ON r.specialization_id = sp.specialization_id
+
     WHERE r.registration_id = ?
     LIMIT 1
 ";
@@ -90,60 +99,10 @@ if (!$registration) {
 
     <!-- Sidebar -->
 
-    <aside class="admin-sidebar">
-
-        <div class="admin-brand">
-
-            <div class="brand-logo">
-                TM
-            </div>
-
-            <div>
-                <strong>Alumni System</strong>
-                <small>Registrar Panel</small>
-            </div>
-
-        </div>
-
-        <nav class="admin-nav">
-
-            <a href="dashboard.php">
-                Dashboard
-            </a>
-
-            <div class="nav-section">
-                REGISTRATION
-            </div>
-
-            <a
-                href="pending.php"
-                class="active"
-            >
-                Pending Registrations
-            </a>
-
-            <a href="approved.php">
-                Approved Registrations
-            </a>
-
-            <a href="rejected.php">
-                Rejected Registrations
-            </a>
-
-            <div class="nav-section">
-                SYSTEM
-            </div>
-
-            <a
-                href="../../auth/logout.php"
-                class="logout-link"
-            >
-                Logout
-            </a>
-
-        </nav>
-
-    </aside>
+     
+              <?php
+ include "includes/sidebar.php"; 
+?>
 
 
     <!-- Main -->
@@ -406,40 +365,84 @@ if (!$registration) {
                 </div>
 
 
-                <div class="form-grid">
+                <div class="form-field">
 
-                    <div class="form-field">
+    <label>
+        Department
+    </label>
 
-                        <label>
-                            Department
-                        </label>
+    <input
+        type="text"
+        value="<?= e($registration["department_name"]) ?>"
+        readonly
+    >
 
-                        <input
-                            type="text"
-                            value="<?= e($registration["department_name"]) ?>"
-                            readonly
-                        >
-
-                    </div>
+</div>
 
 
-                    <div class="form-field">
+<div class="form-field">
 
-                        <label>
-                            Graduation Year
-                        </label>
+    <label>
+        Section / Program
+    </label>
 
-                        <input
-                            type="text"
-                            value="<?= e($registration["graduation_year"]) ?>"
-                            readonly
-                        >
+    <input
+        type="text"
+        value="<?= e($registration["section_name"] ?? "—") ?>"
+        readonly
+    >
 
-                    </div>
+</div>
 
+
+<div class="form-field">
+
+    <label>
+        Specialization
+    </label>
+
+    <input
+        type="text"
+        value="<?= e($registration["specialization_name"] ?? "—") ?>"
+        readonly
+    >
+
+</div>
+
+
+<div class="form-field">
+
+    <label>
+        Level
+    </label>
+
+    <input
+        type="text"
+        value="<?= $registration["level"] !== null
+            ? e("Level " . $registration["level"])
+            : "—" ?>"
+        readonly
+    >
+
+</div>
+
+
+<div class="form-field">
+
+    <label>
+        Graduation Year
+    </label>
+
+    <input
+        type="text"
+        value="<?= e($registration["graduation_year"]) ?>"
+        readonly
+    >
+
+</div>
                 </div>
 
-            </div>
+            
 
 
             <!-- Biography -->

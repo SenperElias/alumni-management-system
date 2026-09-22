@@ -45,12 +45,18 @@ $sql = "
         a.*,
         u.email,
         u.account_status,
-        d.department_name
+        d.department_name,
+        s.section_name,
+        sp.specialization_name
     FROM alumni a
     LEFT JOIN users u
         ON a.user_id = u.user_id
     LEFT JOIN departments d
         ON a.department_id = d.department_id
+    LEFT JOIN sections s
+        ON a.section_id = s.section_id
+    LEFT JOIN specializations sp
+        ON a.specialization_id = sp.specialization_id
     WHERE a.alumni_id = ?
     LIMIT 1
 ";
@@ -465,6 +471,47 @@ if (!$alumni) {
                         </p>
 
                     </div>
+                    <div class="form-field">
+
+    <label>
+        Section / Program
+    </label>
+
+    <p>
+        <?= e(
+            $alumni["section_name"] ?? "—"
+        ) ?>
+    </p>
+
+</div>
+
+<div class="form-field">
+
+    <label>
+        Specialization
+    </label>
+
+    <p>
+        <?= e(
+            $alumni["specialization_name"] ?? "—"
+        ) ?>
+    </p>
+
+</div>
+<div class="form-field">
+
+    <label>
+        Level
+    </label>
+
+    <p>
+        <?= !empty($alumni["level"])
+            ? "Level " . e($alumni["level"])
+            : "—"
+        ?>
+    </p>
+
+</div>
 
 
                     <div class="form-field">

@@ -199,95 +199,9 @@ if (!in_array($status, ["draft", "published", "completed", "cancelled"], true)) 
 
 <div class="admin-layout">
 
-    <!-- SIDEBAR -->
+   <?php require_once __DIR__ ."/../includes/sidebar.php"; ?>
 
-    <aside class="admin-sidebar">
-
-        <div class="admin-brand">
-
-            <div class="brand-logo">
-                TM
-            </div>
-
-            <div>
-
-                <strong>
-                    Alumni System
-                </strong>
-
-                <small>
-                    Admin Portal
-                </small>
-
-            </div>
-
-        </div>
-
-
-        <nav class="admin-nav">
-
-            <a href="../dashboard.php">
-                Dashboard
-            </a>
-
-            <div class="nav-section">
-                MANAGEMENT
-            </div>
-
-            <a href="../opportunities/">
-                Opportunities
-            </a>
-
-            <a
-                href="index.php"
-                class="active"
-            >
-                Events
-            </a>
-
-            <a href="#">
-                Mentorship
-            </a>
-
-            <a href="#">
-                Projects
-            </a>
-
-            <div class="nav-section">
-                REPORTS
-            </div>
-
-            <a href="#">
-                Employment Reports
-            </a>
-
-            <a href="#">
-                Alumni Reports
-            </a>
-
-            <div class="nav-section">
-                SYSTEM
-            </div>
-
-            <a href="#">
-                Notifications
-            </a>
-
-            <a href="#">
-                Settings
-            </a>
-
-            <a
-                href="../../auth/logout.php"
-                class="logout-link"
-            >
-                Logout
-            </a>
-
-        </nav>
-
-    </aside>
-
+        
 
     <!-- MAIN -->
 

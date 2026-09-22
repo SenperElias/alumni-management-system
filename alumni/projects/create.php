@@ -55,6 +55,8 @@ $end_date = "";
 
 $status = "Draft";
 
+$proposal_document = null;
+
 
 /*
 |--------------------------------------------------------------------------
@@ -98,6 +100,53 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $status = trim(
         $_POST["status"] ?? "Draft"
     );
+  /*
+|--------------------------------------------------------------------------
+| PROPOSAL DOCUMENT UPLOAD
+|--------------------------------------------------------------------------
+*/
+
+if (
+    $error === "" &&
+    isset($_FILES["proposal_document"]) &&
+    $_FILES["proposal_document"]["error"] !== UPLOAD_ERR_NO_FILE
+) {
+
+    $file = $_FILES["proposal_document"];
+
+    if ($file["error"] !== UPLOAD_ERR_OK) {
+
+        $error =
+            "There was a problem uploading the proposal document.";
+
+    } elseif ($file["size"] > 5 * 1024 * 1024) {
+
+        $error =
+            "The proposal document must not exceed 5 MB.";
+
+    } else {
+
+        $finfo = finfo_open(FILEINFO_MIME_TYPE);
+
+        $mimeType = finfo_file(
+            $finfo,
+            $file["tmp_name"]
+        );
+
+        finfo_close($finfo);
+
+        if ($mimeType !== "application/pdf") {
+
+            $error =
+                "Only PDF proposal documents are allowed.";
+
+        } else {
+
+            $proposal_document =
+                bin2hex(random_bytes(16)) . ".pdf";
+        }
+    }
+}  
 
 
     /*
@@ -169,6 +218,29 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     */
 
     else {
+        /*
+|--------------------------------------------------------------------------
+| SAVE PROPOSAL DOCUMENT
+|--------------------------------------------------------------------------
+*/
+
+if ($proposal_document !== null) {
+
+    $uploadDirectory =
+        __DIR__ . "/../../uploads/project_proposals/";
+
+    $targetPath =
+        $uploadDirectory . $proposal_document;
+
+    if (!move_uploaded_file(
+        $_FILES["proposal_document"]["tmp_name"],
+        $targetPath
+    )) {
+
+        $error =
+            "Unable to save the proposal document.";
+    }
+}
 
 
         /*
@@ -188,6 +260,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 title,
                 category,
                 description,
+                proposal_document,
                 required_skills,
                 start_date,
                 end_date,
@@ -198,7 +271,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             )
 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
 
         ";
 
@@ -218,11 +291,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             $stmt->bind_param(
 
-                "issssssss",
+                "isssssssss",
                 $user_id,
                 $title,
                 $category,
                 $description,
+                $proposal_document,
                 $required_skills,
                 $start_date,
                 $end_date,
@@ -624,117 +698,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     ====================================================== -->
 
 
-    <aside class="admin-sidebar">
-
-
-        <div class="admin-brand">
-
-
-            <div class="brand-logo">
-                TM
-            </div>
-
-
-            <div>
-
-                <strong>
-                    Alumni System
-                </strong>
-
-                <small>
-                    Alumni Portal
-                </small>
-
-            </div>
-
-
-        </div>
-
-
-        <nav class="admin-nav">
-
-
-            <a href="../dashboard.php">
-                Dashboard
-            </a>
-
-
-            <div class="nav-section">
-                MY ACCOUNT
-            </div>
-
-
-            <a href="../profile.php">
-                My Profile
-            </a>
-
-
-            <a href="../employment.php">
-                Employment
-            </a>
-
-
-            <div class="nav-section">
-                OPPORTUNITIES
-            </div>
-
-
-            <a href="../jobs.php">
-                Jobs & Internships
-            </a>
-
-
-            <a href="../mentorship/index.php">
-                Mentorship
-            </a>
-
-
-            <div class="nav-section">
-                ACTIVITIES
-            </div>
-
-
-            <a
-                href="index.php"
-                class="active"
-            >
-                Projects
-            </a>
-
-
-            <a href="../events/events.php">
-                Events
-            </a>
-
-
-            <div class="nav-section">
-                SYSTEM
-            </div>
-
-
-            <a href="#">
-                Notifications
-            </a>
-
-
-            <a href="#">
-                Settings
-            </a>
-
-
-            <a
-                href="../../auth/logout.php"
-                class="logout-link"
-            >
-                Logout
-            </a>
-
-
-        </nav>
-
-
-    </aside>
-
+    <?php
+    require_once __DIR__ . "/../includes/sidebar.php";
+    ?>
 
     <!-- =====================================================
          MAIN CONTENT
@@ -810,6 +776,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     <form
                         method="POST"
                         action=""
+                        enctype="multipart/form-data"
                     >
 
 
@@ -904,7 +871,40 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
 
                         </div>
+<!-- PROPOSAL DOCUMENT -->
 
+<div class="form-group">
+
+    <label for="proposal_document">
+
+        Project Proposal Document
+
+        <span class="required">
+            *
+        </span>
+
+    </label>
+
+    <input
+        type="file"
+        id="proposal_document"
+        name="proposal_document"
+        accept=".pdf"
+        required
+    >
+
+    <span class="help-text">
+
+        Upload your formal project proposal as a PDF.
+        The proposal should explain the project's objectives,
+        proposed activities, expected outcomes, your contribution,
+        and other relevant details.
+
+        Maximum file size: 5 MB.
+
+    </span>
+
+</div>
 
                         <!-- REQUIRED SKILLS -->
 

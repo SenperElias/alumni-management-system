@@ -119,12 +119,21 @@ $stmt = $conn->prepare("
         last_name,
         email,
         graduation_year,
-        status,
-        created_at,
-        verified_at
-    FROM alumni_registrations
-    WHERE department_id = ?
-    ORDER BY created_at DESC
+        s.section_name,
+        sp.specialization_name,
+        level,
+        r.status,
+        r.created_at,
+        r.verified_at
+    FROM alumni_registrations r
+    LEFT JOIN sections s 
+    ON r.section_id = s.section_id
+
+    LEFT JOIN specializations sp
+    ON r.specialization_id= sp.specialization_id
+
+
+    WHERE r.department_id = ?
 ");
 
 if (!$stmt) {
@@ -407,6 +416,19 @@ $registrationResult = $stmt->get_result();
                                         Email
                                     </th>
 
+
+                                    <th>
+                                        Section / Program
+                                    </th>
+
+                                    <th>
+                                        Specializations
+                                    </th>
+
+                                    <th>
+                                    Level
+                                    </th>
+
                                     <th>
                                         Graduation Year
                                     </th>
@@ -467,6 +489,21 @@ $registrationResult = $stmt->get_result();
 
                                     </td>
 
+                                        <td> 
+                                        <?= e(
+                                            $row["section_name"]
+                                        ) ?>
+
+                                    </td>
+
+                                    <td><?= e($row["specialization_name"] ?? "—") ?></td>
+<td>
+    <?= !empty($row["level"])
+        ? "Level " . e($row["level"])
+        : "—"
+    ?>
+</td>
+<td><?= e($row["graduation_year"]) ?></td>
 
                                     <td>
 

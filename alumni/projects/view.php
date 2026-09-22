@@ -85,8 +85,10 @@ $sql = "
         ON p.created_by = u.user_id
 
     WHERE p.project_id = ?
-
-      AND LOWER(TRIM(p.approval_status)) = 'approved'
+AND (
+      LOWER(TRIM(p.approval_status)) = 'approved'
+      or p.created_by = ?
+      )
 
     LIMIT 1
 
@@ -107,8 +109,9 @@ if (!$stmt) {
 
 
 $stmt->bind_param(
-    "i",
-    $project_id
+    "ii",
+    $project_id,
+    $user_id
 );
 
 
@@ -456,118 +459,10 @@ if (!$project) {
 <div class="admin-layout">
 
 
-    <!-- SIDEBAR -->
-
-    <aside class="admin-sidebar">
-
-
-        <div class="admin-brand">
-
-
-            <div class="brand-logo">
-                TM
-            </div>
-
-
-            <div>
-
-                <strong>
-                    Alumni System
-                </strong>
-
-                <small>
-                    Alumni Portal
-                </small>
-
-            </div>
-
-
-        </div>
-
-
-        <nav class="admin-nav">
-
-
-            <a href="../dashboard.php">
-                Dashboard
-            </a>
-
-
-            <div class="nav-section">
-                MY ACCOUNT
-            </div>
-
-
-            <a href="../profile.php">
-                My Profile
-            </a>
-
-
-            <a href="../employment.php">
-                Employment
-            </a>
-
-
-            <div class="nav-section">
-                OPPORTUNITIES
-            </div>
-
-
-            <a href="../jobs.php">
-                Jobs & Internships
-            </a>
-
-
-            <a href="../mentorship/index.php">
-                Mentorship
-            </a>
-
-
-            <div class="nav-section">
-                ACTIVITIES
-            </div>
-
-
-            <a
-                href="browse.php"
-                class="active"
-            >
-                Projects
-            </a>
-
-
-            <a href="../events/events.php">
-                Events
-            </a>
-
-
-            <div class="nav-section">
-                SYSTEM
-            </div>
-
-
-            <a href="#">
-                Notifications
-            </a>
-
-
-            <a href="#">
-                Settings
-            </a>
-
-
-            <a
-                href="../../auth/logout.php"
-                class="logout-link"
-            >
-                Logout
-            </a>
-
-
-        </nav>
-
-
-    </aside>
+   <?php
+$currentPage = "projects";
+require_once __DIR__ . "/../includes/sidebar.php";
+?>
 
 
     <!-- MAIN -->
@@ -585,7 +480,7 @@ if (!$project) {
                 </h1>
 
                 <p>
-                    View an approved alumni project.
+                    View the full details of this alumni project.
                 </p>
 
             </div>
@@ -599,7 +494,7 @@ if (!$project) {
 
 
                 <a
-                    href="browse.php"
+                    href="index.php"
                     class="back-link"
                 >
                     ← Back to Projects
@@ -819,7 +714,7 @@ if (!$project) {
 
 
                         <a
-                            href="browse.php"
+                            href="index.php"
                             class="back-button"
                         >
                             Back to Projects

@@ -30,12 +30,27 @@ $sql = "
         r.last_name,
         r.email,
         r.graduation_year,
+        r.verification_document,
         r.created_at,
-        d.department_name
+
+        d.department_name,
+        s.section_name,
+        sp.specialization_name,
+        r.level
+
     FROM alumni_registrations r
+
     LEFT JOIN departments d
         ON r.department_id = d.department_id
+
+    LEFT JOIN sections s
+        ON r.section_id = s.section_id
+
+    LEFT JOIN specializations sp
+        ON r.specialization_id = sp.specialization_id
+
     WHERE r.status = 'pending'
+
     ORDER BY r.created_at DESC
 ";
 
@@ -185,7 +200,15 @@ $activePage= "pending";
 
                                     <th>Department</th>
 
+                                    <th>Section / program</th>
+
+                                    <th>Specialization</th>
+
+                                    <th>Level</th>
+
                                     <th>Graduation Year</th>
+
+                                    <th>Verification Document</th>
 
                                     <th>Registered</th>
 
@@ -234,23 +257,56 @@ $activePage= "pending";
                                             ) ?>
 
                                         </td>
-
                                         <td>
+    <?= e(
+        $row["section_name"] ?? "—"
+    ) ?>
+</td>
 
-                                            <?= e(
-                                                $row["graduation_year"]
-                                            ) ?>
+<td>
+    <?= e(
+        $row["specialization_name"] ?? "—"
+    ) ?>
+</td>
 
-                                        </td>
+<td>
+    <?= e(
+        $row["level"] !== null
+            ? "Level " . $row["level"]
+            : "—"
+    ) ?>
+</td>
+                                
 
-                                        <td>
+                                       <td>
+    <?= e(
+        $row["graduation_year"]
+    ) ?>
+</td>
 
-                                            <?= e(
-                                                $row["created_at"]
-                                            ) ?>
+<td>
+    <?php if (!empty($row["verification_document"])): ?>
 
-                                        </td>
+        <a
+            href="view_document.php?registration_id=<?= (int) $row["registration_id"] ?>"
+            target="_blank"
+            class="secondary-button"
+        >
+            View Document
+        </a>
 
+    <?php else: ?>
+
+        <span>No document</span>
+
+    <?php endif; ?>
+</td>
+
+<td>
+    <?= e(
+        $row["created_at"]
+    ) ?>
+</td>
                                         <td>
 
                                             <a

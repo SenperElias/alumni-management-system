@@ -174,6 +174,9 @@ try {
             phone,
             address,
             department_id,
+            section_id,
+            specialization_id,
+            level,
             graduation_year,
             bio,
             profile_photo,
@@ -185,7 +188,7 @@ try {
         )
         VALUES
         (
-            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
             1, 1, 1, 1, 1
         )
     ");
@@ -197,7 +200,7 @@ try {
     }
 
     $alumniStmt->bind_param(
-        "isssssssiiss",
+        "isssssssiiiiiss",
         $user_id,
         $registration["college_id_number"],
         $registration["first_name"],
@@ -207,6 +210,9 @@ try {
         $registration["phone"],
         $registration["address"],
         $registration["department_id"],
+        $registration["section_id"],
+        $registration["specialization_id"],
+        $registration["level"],
         $registration["graduation_year"],
         $registration["bio"],
         $registration["profile_photo"]

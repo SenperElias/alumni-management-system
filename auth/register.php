@@ -42,8 +42,14 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $phone = trim($_POST["phone"] ?? "");
         $address = trim($_POST["address"] ?? "");
         $departmentId = $_POST["department_id"] ?? "";
-        $graduationYear = $_POST["graduation_year"] ?? "";
+$sectionId = $_POST["section_id"] ?? "";
+$specializationId = $_POST["specialization_id"] ?? "";
+$level = $_POST["level"] ?? "";
+$graduationYear = $_POST["graduation_year"] ?? "";
+$bio = trim($_POST["bio"] ?? "");
         $bio = trim($_POST["bio"] ?? "");
+        $verification_document = $_FILES["verification_document"] ?? null;
+        $documentFileName = null;
 
 
         /*
@@ -59,6 +65,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $lastName === "" ||
             $gender === "" ||
             $departmentId === "" ||
+            $sectionId === "" ||
             $graduationYear === ""
         ) {
 
@@ -72,8 +79,136 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             $error = "Password must contain at least 8 characters.";
 
+        
+} else {
+/*
+        |--------------------------------------------------------------------------
+        | VALIDATE ACADEMIC STRUCTURE
+        |--------------------------------------------------------------------------
+        */
+
+        $sectionId = (int) $sectionId;
+        $level = (int) $level;
+
+        $specializationId =
+            $specializationId !== ""
+                ? (int) $specializationId
+                : null;
+
+        $academicValid = false;
+
+        if ($specializationId !== null) {
+
+            $academicCheck = $conn->prepare("
+                SELECT level_id
+                FROM academic_levels
+                WHERE section_id = ?
+                  AND specialization_id = ?
+                  AND level = ?
+                LIMIT 1
+            ");
+
+            if ($academicCheck) {
+
+                $academicCheck->bind_param(
+                    "iii",
+                    $sectionId,
+                    $specializationId,
+                    $level
+                );
+
+                if ($academicCheck->execute()) {
+
+                    $academicResult =
+                        $academicCheck->get_result();
+
+                    $academicValid =
+                        $academicResult->num_rows > 0;
+                }
+
+                $academicCheck->close();
+            }
+
         } else {
 
+            $academicCheck = $conn->prepare("
+                SELECT level_id
+                FROM academic_levels
+                WHERE section_id = ?
+                  AND specialization_id IS NULL
+                  AND level = ?
+                LIMIT 1
+            ");
+
+            if ($academicCheck) {
+
+                $academicCheck->bind_param(
+                    "ii",
+                    $sectionId,
+                    $level
+                );
+
+                if ($academicCheck->execute()) {
+
+                    $academicResult =
+                        $academicCheck->get_result();
+
+                    $academicValid =
+                        $academicResult->num_rows > 0;
+                }
+
+                $academicCheck->close();
+            }
+        }
+
+        if (!$academicValid) {
+
+            $error =
+                "Invalid department, section, specialization, or level selection.";
+        }
+    if ($verification_document && $verification_document["error"] !== UPLOAD_ERR_NO_FILE) {
+
+        if ($verification_document["error"] !== UPLOAD_ERR_OK) {
+            $error = "There was a problem uploading the verification document.";
+        } elseif ($verification_document["size"] > 5 * 1024 * 1024) {
+            $error = "The verification document must be 5 MB or smaller.";
+        }
+        else {
+    $finfo = new finfo(FILEINFO_MIME_TYPE);
+    $mimeType = $finfo->file($verification_document["tmp_name"]);
+
+    $allowedTypes = [
+        "application/pdf",
+        "image/jpeg",
+        "image/png"
+    ];
+
+    if (!in_array($mimeType, $allowedTypes, true)) {
+        $error = "Only PDF, JPG, and PNG files are allowed.";
+    }
+    else {
+    $documentExtension = match ($mimeType) {
+        "application/pdf" => "pdf",
+        "image/jpeg"      => "jpg",
+        "image/png"       => "png",
+        default           => null
+    };
+
+    if ($documentExtension === null) {
+        $error = "Invalid verification document type.";
+    } else {
+        $documentFileName = bin2hex(random_bytes(16)) . "." . $documentExtension;
+        $documentUploadDir = dirname(__DIR__) . "/uploads/verification_documents/";
+        
+$documentUploadPath = $documentUploadDir . $documentFileName;
+    }
+}
+        }
+    }
+
+
+    
+    
             /*
             |--------------------------------------------------------------------------
             | CHECK EMAIL
@@ -296,7 +431,15 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                                     ? $alumniIdNumber
                                     : null;
 
+if ($error === "" && $verification_document && $verification_document["error"] !== UPLOAD_ERR_NO_FILE) {
 
+    if (!move_uploaded_file(
+        $verification_document["tmp_name"],
+        $documentUploadPath
+    )) {
+        $error = "Unable to save the verification document.";
+    }
+}
                             $stmt = $conn->prepare("
                                 INSERT INTO alumni_registrations
                                 (
@@ -310,14 +453,18 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                                     phone,
                                     address,
                                     department_id,
+                                    section_id,
+                                    specialization_id,
+                                    level,
                                     graduation_year,
                                     bio,
+                                    verification_document,
                                     status,
                                     created_at
                                 )
                                 VALUES
                                 (
-                                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                                     'pending',
                                     NOW()
                                 )
@@ -338,7 +485,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                             } else {
  $stmt->bind_param(
-                                    "sssssssssiis",
+                                    "sssssssssiiiisss",
                                     $email,
                                     $passwordHash,
                                     $alumniIdValue,
@@ -349,8 +496,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                                     $phone,
                                     $address,
                                     $departmentId,
+                                    $sectionId,
+                                    $specializationId,
+                                    $level,
                                     $graduationYear,
-                                    $bio
+                                    $bio,
+                                    $documentFileName
                                 );
 
 
@@ -496,7 +647,8 @@ if (!$result) {
         <?php if ($success === ""): ?>
 
 
-        <form method="POST">
+        <form method="POST"
+        enctype="multipart/form-data">
 
 
             <?= csrf_field() ?>
@@ -771,8 +923,78 @@ if (!$result) {
                 </select>
 
             </div>
+<!-- =================================================
+     SECTION / PROGRAM
+================================================== -->
 
+<div class="form-group">
 
+    <label for="section_id">
+        Section / Program *
+    </label>
+
+    <select
+        id="section_id"
+        name="section_id"
+        required 
+        disabled
+    >
+
+        <option value="">
+            Select Department First
+        </option>
+
+    </select>
+
+</div>
+<!-- =================================================
+     SPECIALIZATION
+================================================== -->
+
+<div class="form-group">
+
+    <label for="specialization_id">
+        Specialization
+    </label>
+
+    <select
+        id="specialization_id"
+        name="specialization_id"
+        disabled
+    >
+
+        <option value="">
+            Select Section / Program First
+        </option>
+
+    </select>
+
+</div>
+
+<!-- =================================================
+     LEVEL
+================================================== -->
+
+<div class="form-group">
+
+    <label for="level">
+        Level *
+    </label>
+
+    <select
+        id="level"
+        name="level"
+        required
+        disabled
+    >
+
+        <option value="">
+            Select Section / Program First
+        </option>
+
+    </select>
+
+</div>
             <!-- =================================================
                  GRADUATION YEAR
             ================================================== -->
@@ -815,6 +1037,23 @@ if (!$result) {
                 ><?= e($_POST["bio"] ?? "") ?></textarea>
 
             </div>
+            <div class="form-group">
+    <label for="verification_document">
+        Supporting Identity/Alumni Verification Document
+    </label>
+
+    <input
+        type="file"
+        id="verification_document"
+        name="verification_document"
+        accept=".pdf,.jpg,.jpeg,.png"
+    >
+
+    <small>
+        Upload a college ID card, graduation certificate, academic transcript,
+        or another official college-issued document. PDF, JPG, or PNG only.
+    </small>
+</div>
  <!-- =================================================
                  SUBMIT
             ================================================== -->
@@ -849,7 +1088,392 @@ if (!$result) {
 
 </div>
 
+ <script>
 
+// =================================================
+// ACADEMIC DROPDOWNS
+// Department → Section → Specialization → Level
+// =================================================
+
+
+// =================================================
+// ELEMENTS
+// =================================================
+
+const departmentSelect =
+    document.getElementById("department_id");
+
+const sectionSelect =
+    document.getElementById("section_id");
+
+const specializationSelect =
+    document.getElementById("specialization_id");
+
+const levelSelect =
+    document.getElementById("level");
+
+
+// =================================================
+// DEPARTMENT → SECTION
+// =================================================
+
+if (departmentSelect && sectionSelect) {
+
+    departmentSelect.addEventListener("change", function () {
+
+        const departmentId = this.value;
+
+
+        // Reset Section
+        sectionSelect.innerHTML =
+            '<option value="">Loading sections...</option>';
+
+        sectionSelect.disabled = true;
+
+
+        // Reset Specialization
+        specializationSelect.innerHTML =
+            '<option value="">Select Section / Program First</option>';
+
+        specializationSelect.disabled = true;
+
+
+        // Reset Level
+        levelSelect.innerHTML =
+            '<option value="">Select Section / Program First</option>';
+
+        levelSelect.disabled = true;
+
+
+        // No department selected
+        if (!departmentId) {
+
+            sectionSelect.innerHTML =
+                '<option value="">Select Department First</option>';
+
+            return;
+        }
+
+
+        // Load sections
+        fetch(
+            "get_sections.php?department_id=" +
+            encodeURIComponent(departmentId)
+        )
+
+            .then(response => {
+
+                if (!response.ok) {
+                    throw new Error("Failed to load sections.");
+                }
+
+                return response.json();
+            })
+
+            .then(data => {
+
+                sectionSelect.innerHTML =
+                    '<option value="">Select Section / Program</option>';
+
+
+                if (
+                    !data.success ||
+                    !Array.isArray(data.sections)||
+                    data.sections.length === 0
+                ) {
+
+                    sectionSelect.innerHTML =
+                        '<option value="">Unable to load sections</option>';
+
+                    return;
+                }
+
+
+                if (
+                    data.sections.length === 0
+                ) {
+
+                    sectionSelect.innerHTML =
+                        '<option value="">No sections available</option>';
+
+                    sectionSelect.disabled = true;
+
+                    return;
+                }
+
+
+                data.sections.forEach(section => {
+
+                    const option =
+                        document.createElement("option");
+
+                    option.value =
+                        section.section_id;
+
+                    option.textContent =
+                        section.section_name;
+
+                    sectionSelect.appendChild(option);
+
+                });
+
+
+                sectionSelect.disabled = false;
+
+            })
+
+            .catch(error => {
+
+                console.error(error);
+
+                sectionSelect.innerHTML =
+                    '<option value="">Unable to load sections</option>';
+
+                sectionSelect.disabled = true;
+            });
+
+    });
+
+}
+
+
+// =================================================
+// LOAD LEVELS
+// =================================================
+
+function loadLevels() {
+
+    const sectionId =
+        sectionSelect.value;
+
+    const specializationId =
+        specializationSelect.value;
+
+
+    levelSelect.innerHTML =
+        '<option value="">Loading levels...</option>';
+
+    levelSelect.disabled = true;
+
+
+    if (!sectionId) {
+
+        levelSelect.innerHTML =
+            '<option value="">Select Section / Program First</option>';
+
+        return;
+    }
+
+
+    let url =
+        "get_levels.php?section_id=" +
+        encodeURIComponent(sectionId);
+
+
+    if (specializationId) { url +=
+            "&specialization_id=" +
+            encodeURIComponent(specializationId);
+    }
+
+
+    fetch(url)
+
+        .then(response => {
+
+            if (!response.ok) {
+                throw new Error("Failed to load levels.");
+            }
+
+            return response.json();
+        })
+
+        .then(data => {
+
+            levelSelect.innerHTML =
+                '<option value="">Select Level</option>';
+
+
+            if (
+                !data.success ||
+                !Array.isArray(data.levels) ||
+                data.levels.length === 0
+            ) {
+
+                levelSelect.innerHTML =
+                    '<option value="">No levels available</option>';
+
+                levelSelect.disabled = true;
+
+                return;
+            }
+
+
+            data.levels.forEach(level => {
+
+                const option =
+                    document.createElement("option");
+
+                option.value =
+                    level;
+
+                option.textContent =
+                    "Level " + level;
+
+                levelSelect.appendChild(option);
+
+            });
+
+
+            levelSelect.disabled = false;
+
+        })
+
+        .catch(error => {
+
+            console.error(error);
+
+            levelSelect.innerHTML =
+                '<option value="">Unable to load levels</option>';
+
+            levelSelect.disabled = true;
+        });
+
+}
+
+
+// =================================================
+// SECTION → SPECIALIZATION
+// =================================================
+
+if (sectionSelect && specializationSelect) {
+
+    sectionSelect.addEventListener("change", function () {
+
+        const sectionId = this.value;
+
+
+        // Reset specialization
+        specializationSelect.innerHTML =
+            '<option value="">Loading specializations...</option>';
+
+        specializationSelect.disabled = true;
+
+
+        // Reset level
+        levelSelect.innerHTML =
+            '<option value="">Select Section / Program First</option>';
+
+        levelSelect.disabled = true;
+
+
+        if (!sectionId) {
+
+            specializationSelect.innerHTML =
+                '<option value="">Select Section / Program First</option>';
+
+            return;
+        }
+
+
+        fetch(
+            "get_specializations.php?section_id=" +
+            encodeURIComponent(sectionId)
+        )
+
+            .then(response => {
+
+                if (!response.ok) {
+                    throw new Error(
+                        "Failed to load specializations."
+                    );
+                }
+
+                return response.json();
+            })
+
+            .then(data => {
+
+                specializationSelect.innerHTML =
+                    '<option value="">Select Specialization</option>';
+
+
+                // No specialization
+                if (
+                    !data.success ||
+                    !Array.isArray(data.specializations) ||
+                    data.specializations.length === 0
+                ) {
+
+                    specializationSelect.innerHTML =
+                        '<option value="">No specialization required</option>';
+
+                    specializationSelect.disabled = true;
+
+
+                    // Load levels directly
+                    loadLevels();
+
+                    return;
+                }
+
+
+                // Add specializations
+                data.specializations.forEach(
+                    specialization => {
+
+                        const option =
+                            document.createElement("option");
+
+                        option.value =
+                            specialization.specialization_id;
+
+                        option.textContent =
+                            specialization.specialization_name;
+
+                        specializationSelect.appendChild(
+                            option
+                        );
+
+                    }
+                );
+
+
+                specializationSelect.disabled = false;
+
+            })
+
+            .catch(error => {
+
+                console.error(error);
+ specializationSelect.innerHTML =
+                    '<option value="">Unable to load specializations</option>';
+
+                specializationSelect.disabled = true;
+            });
+
+    });
+
+}
+
+
+// =================================================
+// SPECIALIZATION → LEVEL
+// =================================================
+
+if (specializationSelect && levelSelect) {
+
+    specializationSelect.addEventListener(
+        "change",
+        function () {
+
+            loadLevels();
+
+        }
+    );
+
+}
+
+</script>
 </body>
 
 </html>

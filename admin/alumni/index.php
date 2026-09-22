@@ -224,10 +224,10 @@ $pageTitle = "Alumni Management";
 
                 <div>
 
-                    <strong>Administrator</strong>
+                    <strong>Alumni</strong>
 
                     <small>
-                        System Admin
+                        Alumni Portal
                     </small>
 
                 </div>

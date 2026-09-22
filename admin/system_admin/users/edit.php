@@ -16,7 +16,7 @@ if (!isset($_SESSION["user_id"])) {
 }
 
 if ($_SESSION["role"] !== "system_admin") {
-    header("Location: ../../../index.php");
+    header("Location: /almuni-management-system/public/index.php");
     exit;
 }
 

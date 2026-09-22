@@ -359,6 +359,7 @@ $sql = "
         e.End_date,
         e.Verification_status,
         e.Verification_notes,
+        e.verification_document,
         e.Updated_by,
         e.created_at,
         e.Updated_at,
@@ -1130,8 +1131,33 @@ $rejectedCount =
                             </div>
 
 
-                            <div class="employment-info-item">
 
+                            <div class="employment-info-item">
+    <span>
+        Verification Evidence
+    </span>
+
+    <strong>
+
+        <?php if (!empty($job["verification_document"])): ?>
+
+            <a
+                href="view_document.php?id=<?= (int) $job["employment_id"] ?>"
+                target="_blank"
+            >
+                View Supporting Document
+            </a>
+
+        <?php else: ?>
+
+            No document submitted
+
+        <?php endif; ?>
+
+    </strong>
+
+</div>
+<div class="employment-info-item">
                                 <span>
                                     Start Date
                                 </span>

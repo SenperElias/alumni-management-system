@@ -66,7 +66,13 @@ $sql = "
         a.phone,
         a.graduation_year,
         a.department_id,
-        d.department_name
+        d.department_name,
+        a.section_id,
+        s.section_name,
+        a.specialization_id,
+        sp.specialization_name,
+        a.level
+
     FROM alumni a
 
     LEFT JOIN users u
@@ -74,6 +80,13 @@ $sql = "
 
     LEFT JOIN departments d
         ON a.department_id = d.department_id
+
+        LEFT JOIN sections s
+        ON a.section_id = s.section_id
+        
+    LEFT JOIN specializations sp
+        ON a.specialization_id = sp.specialization_id
+
 
     WHERE 1 = 1
 ";
@@ -164,7 +177,9 @@ $result = $stmt->get_result();
 
 ?>
 
-
+<?
+$activePage = "alumni";
+?>
 <!DOCTYPE html>
 
 <html lang="en">
@@ -201,94 +216,8 @@ $result = $stmt->get_result();
          SIDEBAR
     ====================================================== -->
 
-    <aside class="admin-sidebar">
-
-
-        <div class="admin-brand">
-
-
-            <div class="brand-logo">
-                TM
-            </div>
-
-
-            <div>
-
-                <strong>
-                    Alumni System
-                </strong>
-
-                <small>
-                    Registrar Panel
-                </small>
-
-            </div>
-
-
-        </div>
-
-
-
-        <nav class="admin-nav">
-
-
-            <a href="dashboard.php">
-                Dashboard
-            </a>
- <div class="nav-section">
-                REGISTRATION
-            </div>
-
-
-            <a href="pending.php">
-                Pending Registrations
-            </a>
-
-
-            <a href="approved.php">
-                Approved Registrations
-            </a>
-
-
-            <a href="rejected.php">
-                Rejected Registrations
-            </a>
-
-
-            <div class="nav-section">
-                ALUMNI
-            </div>
-
-
-           
-
-            <a
-                href="alumni.php"
-                class="active"
-            >
-                Alumni Directory
-            </a>
-
-
-            <div class="nav-section">
-                SYSTEM
-            </div>
-
-
-            <a
-                href="../../auth/logout.php"
-                class="logout-link"
-            >
-                Logout
-            </a>
-
-
-        </nav>
-
-
-    </aside>
-
-
+     <?php
+     require_once "includes/sidebar.php"; ?>
 
     <!-- =====================================================
          MAIN
@@ -566,6 +495,17 @@ $result = $stmt->get_result();
                                         Graduation Year
                                     </th>
 
+<th>
+                                        Section / Progran
+                                    </th>
+
+                            <th>
+                                        Specializations
+                                    </th>
+
+                                    <th>
+                                        Level
+                                    </th>
 
                                     <th>
                                         Phone
@@ -623,23 +563,28 @@ $result = $stmt->get_result();
                                         </td>
 
 
-                                        <td>
+                                       <td>
+    <?= e($row["department_name"]) ?>
+</td>
 
-                                            <?= e(
-                                                $row["department_name"]
-                                            ) ?>
+<td>
+    <?= e($row["section_name"] ?? "—") ?>
+</td>
 
-                                        </td>
+<td>
+    <?= e($row["specialization_name"] ?? "—") ?>
+</td>
 
+<td>
+    <?= !empty($row["level"])
+        ? "Level " . e($row["level"])
+        : "—"
+    ?>
+</td>
 
-                                        <td>
-
-                                            <?= e(
-                                                $row["graduation_year"]
-                                            ) ?>
-
-                                        </td>
-
+<td>
+    <?= e($row["graduation_year"]) ?>
+</td>
 
                                         <td>
 
