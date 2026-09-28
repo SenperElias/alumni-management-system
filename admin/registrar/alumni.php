@@ -500,7 +500,7 @@ $activePage = "alumni";
                                     </th>
 
                             <th>
-                                        Specializations
+                                        Specialization
                                     </th>
 
                                     <th>
@@ -568,6 +568,10 @@ $activePage = "alumni";
 </td>
 
 <td>
+    <?= e($row["graduation_year"]) ?>
+</td>
+
+<td>
     <?= e($row["section_name"] ?? "—") ?>
 </td>
 
@@ -582,9 +586,7 @@ $activePage = "alumni";
     ?>
 </td>
 
-<td>
-    <?= e($row["graduation_year"]) ?>
-</td>
+
 
                                         <td>
 

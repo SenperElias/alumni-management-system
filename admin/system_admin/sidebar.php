@@ -11,7 +11,7 @@ $currentPage = basename($_SERVER["PHP_SELF"]);
         </div>
         <div>
             <strong>Alumni System</strong>
-            <small>Alumni President Portal</small>
+            <small>System Administrator Portal</small>
         </div>
     </div>
        
@@ -36,12 +36,17 @@ $currentPage = basename($_SERVER["PHP_SELF"]);
             Settings
         </a>
 
-        <div class="nav-section">SECURITY</div>
+       <div class="nav-section">SECURITY</div>
 
-        <a href="/almuni-management-system/admin/audit/index.php"
-           class="<?= strpos($_SERVER["PHP_SELF"], "/audit/") !== false ? "active" : "" ?>">
-            Audit Logs
-        </a>
+<a href="/almuni-management-system/admin/system_admin/backups/index.php"
+   class="<?= strpos($_SERVER["PHP_SELF"], "/system_admin/backups/") !== false ? "active" : "" ?>">
+    Backup & Recovery
+</a>
+
+<a href="/almuni-management-system/admin/audit/index.php"
+   class="<?= strpos($_SERVER["PHP_SELF"], "/audit/") !== false ? "active" : "" ?>">
+    Audit Logs
+</a>
 
         <a href="/almuni-management-system/auth/logout.php" class="logout-link">
             Logout

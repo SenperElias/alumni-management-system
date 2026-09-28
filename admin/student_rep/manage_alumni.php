@@ -98,6 +98,11 @@ if (
             a.last_name,
             a.phone,
             a.graduation_year,
+            a.section_id,
+            s.section_name,
+            a.specialization_id,
+            sp.specialization_name,
+            a.level,
             u.email,
             d.department_name
 
@@ -108,6 +113,12 @@ if (
 
         INNER JOIN departments d
             ON a.department_id = d.department_id
+
+            LEFT JOIN sections s
+            ON a.section_id = s.section_id
+
+            LEFT JOIN specializations sp
+            ON a.specialization_id = sp.specialization_id
 
         WHERE u.role = 'alumni'
           AND u.account_status = 'active'
@@ -516,6 +527,18 @@ if (
                                         </th>
 
                                         <th>
+                                            Section / Program
+                                        </th>
+
+                                        <th>
+                                            Specialization
+                                        </th>
+
+                                        <th>
+                                            Level
+                                        </th>
+
+                                        <th>
                                             Graduation Year
                                         </th>
 
@@ -595,6 +618,28 @@ if (
 
                                         </td>
 
+                                        <td>
+
+                                            <?= e(
+                                                $person["section_name"]
+                                            ) ?>
+
+                                        </td>
+
+                                        <td>
+
+                                            <?= e(
+                                                $person["specialization_name"]
+                                            ) ?>
+
+                                        </td>
+
+                                        <td>
+    <?= !empty($person["level"])
+        ? "Level " . e($person["level"])
+        : "—"
+    ?>
+</td>
 
                                         <td>
 

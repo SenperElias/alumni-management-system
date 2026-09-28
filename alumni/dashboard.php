@@ -39,15 +39,26 @@ $stmt = $conn->prepare("
         a.last_name,
         a.profile_photo,
         a.department_id,
+        a.section_id,
         a.graduation_year,
         a.bio,
         d.department_name,
+        s.section_name,
+        sp.specialization_name,
         u.email
     FROM alumni a
     LEFT JOIN users u
         ON a.user_id = u.user_id
     LEFT JOIN departments d
         ON a.department_id = d.department_id
+
+        LEFT JOIN sections s
+        ON a.section_id = s.section_id
+
+        LEFT JOIN specializations sp
+        ON a.specialization_id = sp.specialization_id
+
+
     WHERE a.user_id = ?
     LIMIT 1
 ");
@@ -81,14 +92,12 @@ $fullName =
 $firstName =
     $alumni["first_name"];
 
-$department =
-    $alumni["department_name"] ?? "Not assigned";
-
-$graduationYear =
-    $alumni["graduation_year"] ?? "Not available";
-
-$profilePhoto =
-    $alumni["profile_photo"] ?? "";
+$department = $alumni["department_name"] ?? "Not assigned";
+$section = $alumni["section_name"] ?? "Not assigned";
+$specialization = $alumni["specialization_name"] ?? "Not applicable";
+$level = $alumni["level"] ?? "Not available";
+$graduationYear = $alumni["graduation_year"] ?? "Not available";
+$profilePhoto = $alumni["profile_photo"] ?? "";
 
 
 /*|--------------------------------------------------------------------------
@@ -440,33 +449,38 @@ $profileCompletion =
 
                 <!-- DEPARTMENT -->
 
-                <div class="stat-card">
+                <!-- DEPARTMENT -->
 
-                    <div class="stat-icon">
+<div class="stat-card">
 
-                        🎓
+    <div class="stat-icon">
+        🎓
+    </div>
 
-                    </div>
+    <div>
 
-                    <div>
+        <span>
+            Department
+        </span>
 
-                        <span>
+        <strong>
+            <?= e($department) ?>
+        </strong>
 
-                            Department
+        <small>
+            Section / Program: <?= e($section) ?>
+        </small>
 
-                        </span>
+        <small>
+            Specialization: <?= e($specialization) ?>
+        </small>
 
-                        <strong>
+        <small>
+            Level: <?=e($level) ?>
+                    </small>
+    </div>
 
-                            <?= e($department) ?>
-
-                        </strong>
-
-                    </div>
-
-                </div>
-
-
+</div>
                 <!-- GRADUATION YEAR -->
 
                 <div class="stat-card">

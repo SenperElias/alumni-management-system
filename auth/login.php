@@ -6,6 +6,37 @@ require_once "../config/database.php";
 require_once "../config/config.php";
 require_once "../includes/functions.php";
 
+// Default maximum failed login attempts
+$maxFailedLoginAttempts = 5;
+
+// Load configured maximum failed login attempts
+$settingsStmt = $conn->prepare("
+    SELECT setting_value
+    FROM system_settings
+    WHERE setting_key = 'max_failed_login_attempts'
+    LIMIT 1
+");
+
+if ($settingsStmt) {
+
+    $settingsStmt->execute();
+
+    $settingsResult = $settingsStmt->get_result();
+
+    if ($setting = $settingsResult->fetch_assoc()) {
+
+        $configuredAttempts = (int) $setting["setting_value"];
+
+        if (
+            $configuredAttempts >= 3 &&
+            $configuredAttempts <= 20
+        ) {
+            $maxFailedLoginAttempts = $configuredAttempts;
+        }
+    }
+
+    $settingsStmt->close();
+}
 $error = "";
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
@@ -26,7 +57,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 password_hash,
                 role,
                 account_status,
-                must_change_password
+                must_change_password,
+                failed_login_attempts,
+                locked_until
              FROM users
              WHERE email = ?
              LIMIT 1"
@@ -47,22 +80,43 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                 $user = $result->fetch_assoc();
 
-                if ($user["account_status"] !== "active") {
+                // Check temporary lockout
+                if (
+                    !empty($user["locked_until"]) &&
+                    strtotime($user["locked_until"]) > time()
+                ) {
+
+                    $error = "Too many failed login attempts. Please try again later.";
+
+                } elseif ($user["account_status"] !== "active") {
 
                     $error = "Your account is not active.";
 
-                } elseif (
-    $user["account_status"] !== "active"
-) {
+                } elseif (password_verify($password, $user["password_hash"])) {
 
-    $error = "Your account has been deactivated. Please contact the administrator.";
+                    // Successful login: reset failed attempts and lockout
+                    $resetStmt = $conn->prepare(
+                        "UPDATE users
+                         SET failed_login_attempts = 0,
+                             locked_until = NULL
+                         WHERE user_id = ?"
+                    );
 
-} elseif (
-    password_verify(
-        $password,
-        $user["password_hash"]
-    )
-) {
+                    if ($resetStmt) {
+                        $resetStmt->bind_param("i", $user["user_id"]);
+                        $resetStmt->execute();
+                        $resetStmt->close();
+                    }
+
+                    // Audit successful login
+                    logAudit(
+                        $conn,
+                        (int) $user["user_id"],
+                        "LOGIN_SUCCESS",
+                        "users",
+                        (int) $user["user_id"],
+                        "User logged in successfully."
+                    );
 
                     session_regenerate_id(true);
 
@@ -72,69 +126,119 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     $_SESSION["must_change_password"] =
                         (int) $user["must_change_password"];
 
-                    /*
-                     * Temporary password handling.
-                     *
-                     * Only alumni accounts can be forced
-                     * to change a temporary password.
-                     */
+                    // Force password change when required
                     if ((int) $user["must_change_password"] === 1) {
 
-    $_SESSION["must_change_password"] = 1;
+                        $_SESSION["must_change_password"] = 1;
 
-    header("Location: change_password.php?required=1");
-    exit;
-}
+                        header("Location: change_password.php?required=1");
+                        exit;
+                    }
 
-                    /*
-                     * Normal role-based redirects.
-                     */
+                    // Normal role-based redirects
                     if ($user["role"] === "admin") {
 
-                        // Alumni President
-                        header(
-                            "Location: ../admin/dashboard.php"
-                        );
+                        header("Location: ../admin/dashboard.php");
                         exit;
 
                     } elseif ($user["role"] === "alumni") {
 
-                        header(
-                            "Location: ../alumni/dashboard.php"
-                        );
+                        header("Location: ../alumni/dashboard.php");
                         exit;
 
                     } elseif ($user["role"] === "registrar") {
 
-                        header(
-                            "Location: ../admin/registrar/dashboard.php"
-                        );
+                        header("Location: ../admin/registrar/dashboard.php");
                         exit;
 
                     } elseif ($user["role"] === "student_rep") {
 
-                        header(
-                            "Location: ../admin/student_rep/dashboard.php"
-                        );
+                        header("Location: ../admin/student_rep/dashboard.php");
                         exit;
 
                     } elseif ($user["role"] === "system_admin") {
 
-                        header(
-                            "Location: ../admin/system_admin/dashboard.php"
-                        );
+                        header("Location: ../admin/system_admin/dashboard.php");
                         exit;
-
-                    } else {
+ } else {
 
                         $error = "Invalid account role.";
                     }
 
                 } else {
 
-                    $error = "Invalid email or password.";
-                }
+                    // Failed login attempt
+                    $failedAttempts = (int) $user["failed_login_attempts"];
+                    $failedAttempts++;
 
+                    if ($failedAttempts >= $maxFailedLoginAttempts) {
+
+                        $lockedUntil = date(
+                            "Y-m-d H:i:s",
+                            time() + (15 * 60)
+                        );
+
+                        $lockStmt = $conn->prepare(
+                            "UPDATE users
+                             SET failed_login_attempts = ?,
+                                 locked_until = ?
+                             WHERE user_id = ?"
+                        );
+
+                        if ($lockStmt) {
+                            $lockStmt->bind_param(
+                                "isi",
+                                $failedAttempts,
+                                $lockedUntil,
+                                $user["user_id"]
+                            );
+                            $lockStmt->execute();
+                            $lockStmt->close();
+                        }
+
+                        // Audit account lockout
+                        logAudit(
+                            $conn,
+                            (int) $user["user_id"],
+                            "ACCOUNT_LOCKED",
+                            "users",
+                            (int) $user["user_id"],
+                            "Account locked after " . $maxFailedLoginAttempts. " consecutive failed login attempts."
+                        );
+
+                        $error = "Too many failed login attempts. Please try again later.";
+
+                    } else {
+
+                        $failStmt = $conn->prepare(
+                            "UPDATE users
+                             SET failed_login_attempts = ?
+                             WHERE user_id = ?"
+                        );
+
+                        if ($failStmt) {
+                            $failStmt->bind_param(
+                                "ii",
+                                $failedAttempts,
+                                $user["user_id"]
+                            );
+                            $failStmt->execute();
+                            $failStmt->close();
+                        }
+
+                        // Audit failed login
+                        logAudit(
+                            $conn,
+                            (int) $user["user_id"],
+                            "LOGIN_FAILED",
+                            "users",
+                            (int) $user["user_id"],
+                            "Failed login attempt."
+                        );
+
+                        $error = "Invalid email or password.";
+                    }
+                }
             } else {
 
                 $error = "Invalid email or password.";
@@ -146,6 +250,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 }
 
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 
@@ -183,14 +288,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             Login to your Alumni Management System account.
         </p>
 
-
         <?php if ($error !== ""): ?>
- <div class="error-message">
+
+            <div class="error-message">
                 <?= e($error) ?>
             </div>
 
         <?php endif; ?>
-
 
         <form
             method="POST"
@@ -202,8 +306,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 <label for="email">
                     Email Address
                 </label>
-
-                <input
+ <input
                     type="email"
                     id="email"
                     name="email"
@@ -212,7 +315,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 >
 
             </div>
-
 
             <div class="form-group">
 
@@ -230,7 +332,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             </div>
 
-
             <button
                 type="submit"
                 class="login-button"
@@ -239,7 +340,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             </button>
 
         </form>
-
 
         <p class="login-back">
 

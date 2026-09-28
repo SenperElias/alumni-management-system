@@ -16,10 +16,19 @@ if ($_SESSION["role"] !== "system_admin") {
     exit;
 }
 
+requirePasswordChange();
+
 $error = "";
+
 $totalUsers = 0;
 $totalAlumni = 0;
 $totalAdmins = 0;
+
+/*
+|--------------------------------------------------------------------------
+| Existing System Statistics
+|--------------------------------------------------------------------------
+*/
 
 $result = $conn->query("
     SELECT COUNT(*) AS total
@@ -27,11 +36,16 @@ $result = $conn->query("
 ");
 
 if ($result) {
+
     $row = $result->fetch_assoc();
+
     $totalUsers = (int) $row["total"];
+
 } else {
+
     $error = "Unable to load system statistics.";
 }
+
 
 $result = $conn->query("
     SELECT COUNT(*) AS total
@@ -40,9 +54,12 @@ $result = $conn->query("
 ");
 
 if ($result) {
+
     $row = $result->fetch_assoc();
+
     $totalAlumni = (int) $row["total"];
 }
+
 
 $result = $conn->query("
     SELECT COUNT(*) AS total
@@ -51,8 +68,127 @@ $result = $conn->query("
 ");
 
 if ($result) {
+
     $row = $result->fetch_assoc();
+
     $totalAdmins = (int) $row["total"];
+}
+
+/*
+|--------------------------------------------------------------------------
+| 4E-1 SYSTEM HEALTH
+|--------------------------------------------------------------------------
+*/
+
+/*
+ * Database Health
+ *
+ * The dashboard already has an active database connection.
+ * mysqli->ping() confirms that the connection is still available.
+ */
+
+$databaseStatus = "Unavailable";
+
+if ($conn && $conn->ping()) {
+    $databaseStatus = "Connected";
+}
+
+
+/*
+ * Backup Directory
+ *
+ * The dashboard is located at:
+ *
+ * admin/system_admin/dashboard.php
+ *
+ * Therefore:
+ *
+ * ../../backups/
+ *
+ * points to the existing project backup directory.
+ */
+
+$backupDirectory = __DIR__ . "/../../backups/";
+
+$backupSystemStatus = "Unavailable";
+$backupStorageStatus = "Not accessible";
+$backupFileCount = 0;
+$latestBackupName = "";
+$latestBackupTime = null;
+
+if (is_dir($backupDirectory)) {
+
+    $backupSystemStatus = "Available";
+
+    if (is_writable($backupDirectory)) {
+
+        $backupStorageStatus = "Writable";
+
+    } else {
+
+        $backupStorageStatus = "Not writable";
+    }
+
+
+    /*
+     * Find valid database backup files.
+     *
+     * This matches the same filename pattern used
+     * by the Backup & Recovery page.
+     */
+
+    $backupFiles = scandir($backupDirectory);
+
+    if ($backupFiles !== false) {
+
+        foreach ($backupFiles as $file) {
+
+            if (
+                $file === "." ||
+                $file === ".."
+            ) {
+                continue;
+            }
+
+
+            if (
+                !preg_match(
+                    '/^alumni_management_backup_[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{2}-[0-9]{2}-[0-9]{2}\.sql$/',
+                    $file
+                )
+            ) {
+                continue;
+            }
+
+
+            $filePath = $backupDirectory . $file;
+
+
+            if (
+                !is_file($filePath) ||
+                filesize($filePath) <= 0
+            ) {
+                continue;
+            }
+
+
+            $backupFileCount++;
+
+            $backupTime = filemtime($filePath);
+
+            if (
+                $backupTime !== false &&
+                (
+                    $latestBackupTime === null ||
+                    $backupTime > $latestBackupTime
+                )
+            ) {
+
+                $latestBackupTime = $backupTime;
+                $latestBackupName = $file;
+            }
+        }
+    }
 }
 
 ?>
@@ -84,8 +220,7 @@ if ($result) {
 <body class="admin-body">
 
 <div class="admin-layout">
-
-    <?php require_once __DIR__ . "/sidebar.php"; ?>
+ <?php require_once __DIR__ . "/sidebar.php"; ?>
 
     <main class="admin-main">
 
@@ -105,15 +240,21 @@ if ($result) {
 
         </header>
 
+
         <section class="dashboard-content">
 
             <?php if ($error !== ""): ?>
 
                 <div class="error-message">
+
                     <?= e($error) ?>
+
                 </div>
 
             <?php endif; ?>
+
+
+            <!-- Existing System Statistics -->
 
             <div class="stats-grid">
 
@@ -129,6 +270,7 @@ if ($result) {
 
                 </div>
 
+
                 <div class="stat-card">
 
                     <span>
@@ -140,6 +282,7 @@ if ($result) {
                     </strong>
 
                 </div>
+
 
                 <div class="stat-card">
 
@@ -154,6 +297,130 @@ if ($result) {
                 </div>
 
             </div>
+
+
+            <!-- System Health -->
+
+            <div class="dashboard-panel">
+
+                <div class="panel-header">
+
+                    <div>
+
+                        <h2>
+                            System Health
+                        </h2>
+
+                        <p>
+                            Monitor the basic technical status of the system.
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+                <div class="quick-stats">
+
+                    <div>
+
+                        <span>
+                            Database
+                        </span>
+
+                        <strong>
+                            <?= e($databaseStatus) ?>
+                        </strong>
+
+                    </div>
+
+
+                    <div>
+
+                        <span>
+                            Backup System
+                        </span>
+
+                        <strong>
+                            <?= e($backupSystemStatus) ?>
+                        </strong>
+
+                    </div>
+
+
+                    <div>
+
+                        <span>
+                            Backup Files
+                        </span>
+
+                        <strong>
+                            <?= $backupFileCount ?>
+                        </strong>
+
+                    </div>
+
+
+                    <div>
+
+                        <span>
+                            Backup Storage
+                        </span>
+
+                        <strong>
+                            <?= e($backupStorageStatus) ?>
+                        </strong>
+
+                    </div>
+
+
+                    <div>
+
+                        <span>
+                            Last Backup
+                        </span>
+
+                        <strong>
+
+                            <?php if ($latestBackupTime !== null): ?>
+
+                                <?= e(
+                                    date(
+                                        "Y-m-d H:i:s",
+                                        $latestBackupTime
+                                    )
+                                ) ?>
+
+                            <?php else: ?>
+
+                                No valid backup found
+
+                            <?php endif; ?>
+
+                        </strong>
+
+                    </div>
+
+                </div>
+
+
+                <?php if ($latestBackupName !== ""): ?>
+
+                    <p style="margin-top: 15px;">
+ <strong>
+                            Latest Backup:
+                        </strong>
+
+                        <?= e($latestBackupName) ?>
+
+                    </p>
+
+                <?php endif; ?>
+
+            </div>
+
+
+            <!-- System Management -->
 
             <div class="dashboard-panel">
 
@@ -173,6 +440,7 @@ if ($result) {
 
                 </div>
 
+
                 <div class="quick-actions">
 
                     <a
@@ -182,7 +450,7 @@ if ($result) {
                         Manage Users
                     </a>
 
-                    
+
                     <a
                         href="settings/index.php"
                         class="secondary-button"
@@ -193,7 +461,11 @@ if ($result) {
                 </div>
 
             </div>
-<div class="dashboard-panel">
+
+
+            <!-- Security -->
+
+            <div class="dashboard-panel">
 
                 <div class="panel-header">
 
@@ -210,6 +482,7 @@ if ($result) {
                     </div>
 
                 </div>
+
 
                 <div class="quick-actions">
 

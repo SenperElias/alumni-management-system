@@ -58,7 +58,7 @@ function mustChangePassword()
 function requirePasswordChange()
 {
     if (mustChangePassword()) {
-        header("Location: ../auth/change_password.php?required=1");
+        header("Location: " . BASE_URL . "auth/change_password.php?required=1");
         exit;
     }
 }
