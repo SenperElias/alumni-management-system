@@ -355,8 +355,10 @@ if (!$result) {
     <div class="public-brand">
 
         <div class="public-logo">
-            TM
+            <img src="/almuni-management-system/assets/img/college-logo.jpg" alt="Logo" style="width: 100%; height: 100%; object-fit: cover;">
         </div>
+
+        <div>
 
         <div>
 
